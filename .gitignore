@@ -1,0 +1,21 @@
+# Generated results from demos, tests, and validation runs
+/results/audio/
+/results/figures/
+/results/sample_validation/
+/results/preprocess_validation/
+
+# MATLAB autosave and backup files
+*.asv
+*.m~
+*.autosave
+
+# Temporary files, logs, and local caches
+*.tmp
+*.temp
+*.log
+*.cache
+
+# OS metadata
+.DS_Store
+Thumbs.db
+desktop.ini
