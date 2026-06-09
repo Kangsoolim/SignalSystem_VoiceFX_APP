@@ -1,8 +1,9 @@
 function y = safeLimiter(x, config)
 %SAFELIMITER Keep output inside the configured peak range.
 %   This is a simple safety guard for framework testing. It is not a final
-%   loudness, compression, or mastering algorithm. Current stage uses a hard
-%   limiter only.
+%   loudness, compression, or mastering algorithm. Default mode is the
+%   original hard limiter; optional soft mode is available through
+%   config.output.limiterMode = 'soft'.
 
 if nargin < 2 || isempty(config)
     config = makeDefaultConfig();
@@ -14,6 +15,7 @@ y(~isfinite(y)) = 0;
 
 limitEnabled = true;
 limitRange = [-1, 1];
+limiterMode = 'hard';
 
 if isfield(config, 'output')
     if isfield(config.output, 'limitEnabled')
@@ -28,6 +30,9 @@ if isfield(config, 'output')
         peakLimit = max(abs(double(config.output.peakLimit)), eps);
         limitRange = [-peakLimit, peakLimit];
     end
+    if isfield(config.output, 'limiterMode') && ~isempty(config.output.limiterMode)
+        limiterMode = lower(char(config.output.limiterMode));
+    end
 end
 
 if limitEnabled
@@ -37,6 +42,13 @@ if limitEnabled
         low = -1;
         high = 1;
     end
-    y = min(max(y, low), high);
+    switch limiterMode
+        case 'soft'
+            center = (low + high) / 2;
+            halfRange = max((high - low) / 2, eps);
+            y = center + halfRange * tanh((y - center) / halfRange);
+        otherwise
+            y = min(max(y, low), high);
+    end
 end
 end

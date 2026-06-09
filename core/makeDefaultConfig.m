@@ -10,6 +10,10 @@ config.audio.defaultFs = 44100;
 config.audio.frameLength = 1024;
 config.audio.numChannels = 1;
 config.audio.inputType = 'double_column';
+% Keep preprocessing conservative by default. Full-file normalization may
+% be enabled explicitly for offline validation/export, but realtime/App
+% per-frame normalization should stay disabled unless a later stage adds a
+% dedicated loudness strategy.
 config.audio.removeDC = false;
 config.audio.normalizeInput = false;
 config.audio.normalizeTargetPeak = 0.99;
@@ -90,6 +94,8 @@ config.output = struct();
 config.output.limitEnabled = true;
 config.output.peakLimit = 1.0;
 config.output.limitRange = [-1, 1];
+% Default remains hard clipping to preserve existing baseline artifacts.
+% Set limiterMode to 'soft' only when a smoother safety guard is desired.
 config.output.limiterMode = 'hard';
 
 config.display = struct();
