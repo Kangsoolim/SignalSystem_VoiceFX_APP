@@ -44,7 +44,7 @@ for k = 1:numel(fxModes)
     fxOutputs.(fxModes{k}) = y;
 end
 
-spaceModes = {'none', 'delay', 'reverb', 'bathroom', 'cave', 'stage'};
+spaceModes = {'none', 'delay', 'bathroom', 'cave'};
 spaceOutputs = struct();
 for k = 1:numel(spaceModes)
     spaceConfig = config.space;
@@ -68,8 +68,8 @@ for k = 1:numel(spaceModes)
 end
 
 chainPairs = {
-    'telephone', 'reverb';
-    'lofi', 'stage';
+    'telephone', 'bathroom';
+    'lofi', 'cave';
     'robot', 'delay'
 };
 chainOutputs = struct();
@@ -103,7 +103,7 @@ end
 
 originalInfo = analyzeSpectrum(x, fs, config.display);
 telephoneInfo = analyzeSpectrum(fxOutputs.telephone, fs, config.display);
-chainInfo = analyzeSpectrum(chainOutputs.lofi_stage, fs, config.display);
+chainInfo = analyzeSpectrum(chainOutputs.lofi_cave, fs, config.display);
 assert(numel(originalInfo.f) == numel(originalInfo.mag), 'Original spectrum f/mag lengths must match.');
 assert(numel(telephoneInfo.f) == numel(telephoneInfo.mag), 'Telephone spectrum f/mag lengths must match.');
 assert(numel(chainInfo.f) == numel(chainInfo.mag), 'Chain spectrum f/mag lengths must match.');
@@ -121,10 +121,10 @@ plotConfig.figureName = 'test_05_vocal_fx_comparison.png';
 fxPlotInfo = plotSignalInfo(x, fxOutputs.telephone, fs, plotConfig);
 
 plotConfig.figureName = 'test_05_space_fx_comparison.png';
-spacePlotInfo = plotSignalInfo(x, spaceOutputs.stage, fs, plotConfig);
+spacePlotInfo = plotSignalInfo(x, spaceOutputs.bathroom, fs, plotConfig);
 
 plotConfig.figureName = 'test_05_fx_space_chain.png';
-chainPlotInfo = plotSignalInfo(x(1:777), chainOutputs.lofi_stage, fs, plotConfig);
+chainPlotInfo = plotSignalInfo(x(1:777), chainOutputs.lofi_cave, fs, plotConfig);
 
 assert(fxPlotInfo.figureSaved && exist(fxPlotInfo.figurePath, 'file') == 2, 'Vocal FX comparison figure should be saved.');
 assert(spacePlotInfo.figureSaved && exist(spacePlotInfo.figurePath, 'file') == 2, 'Space FX comparison figure should be saved.');

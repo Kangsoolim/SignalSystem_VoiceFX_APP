@@ -1,6 +1,6 @@
 function [yFrame, state] = applySpaceFX(xFrame, fs, spaceConfig, state)
 %APPLYSPACEFX Apply lightweight delay and environment-style space effects.
-%   Supported modes are none, delay, reverb, bathroom, cave, and stage.
+%   Supported modes are none, delay, bathroom, and cave. stage is a legacy alias for bathroom.
 %   Effects use causal buffers stored in state.space for frame continuity.
 
 if nargin < 3 || isempty(spaceConfig)
@@ -15,9 +15,7 @@ if ~isfield(state, 'space') || isempty(state.space)
     state.space = struct();
 end
 
-yFrame = double(xFrame);
-yFrame = yFrame(:);
-yFrame(~isfinite(yFrame)) = 0;
+yFrame = cleanColumn(xFrame);
 
 if ~isfield(spaceConfig, 'enabled') || ~spaceConfig.enabled
     return;
@@ -29,50 +27,48 @@ if strcmpi(spaceType, 'none') || isempty(yFrame)
 end
 
 if isempty(fs) || ~isfinite(fs) || fs <= 0
-    yFrame(~isfinite(yFrame)) = 0;
     return;
 end
 
 dry = yFrame;
-mix = clamp01(getFieldOrDefault(spaceConfig, 'mix', 0.35));
-feedback = clampFeedback(getFieldOrDefault(spaceConfig, 'feedback', 0.35));
-reverbAmount = clamp01(getFieldOrDefault(spaceConfig, 'reverbAmount', 0.4));
+spaceParams = resolveSpaceParams(spaceType, spaceConfig);
+mix = clamp01(getFieldOrDefault(spaceParams, 'mix', 0.28));
+feedback = clampFeedback(getFieldOrDefault(spaceParams, 'feedback', 0.24));
+reverbAmount = clamp01(getFieldOrDefault(spaceParams, 'reverbAmount', 0.30));
+damping = clamp01(getFieldOrDefault(spaceParams, 'damping', 0.16));
+wetGain = clampGain(getFieldOrDefault(spaceParams, 'wetGain', 1.0));
 
 switch lower(spaceType)
     case 'delay'
-        delayTime = getFieldOrDefault(spaceConfig, 'delayTime', 0.25);
-        delaySamples = timeToSamples(delayTime, fs, 0.25);
-        [wet, state] = processDelay(dry, delaySamples, feedback, spaceType, state);
+        delayTime = getFieldOrDefault(spaceParams, 'delayTime', 0.18);
+        delaySamples = timeToSamples(delayTime, fs, 0.18);
+        delayGain = clamp01(getFieldOrDefault(spaceParams, 'delayGain', 0.58));
+        [wet, state] = processDelay(dry, delaySamples, feedback, delayGain, spaceType, state);
 
-    case 'reverb'
-        delayTimes = [0.029, 0.037, 0.043, 0.053];
-        gains = reverbAmount * [0.55, 0.42, 0.32, 0.24];
-        [wet, state] = processMultiDelay(dry, fs, delayTimes, gains, feedback * 0.7, spaceType, state);
 
     case 'bathroom'
-        delayTimes = [0.010, 0.017, 0.024, 0.031];
-        gains = max(reverbAmount, 0.55) * [0.70, 0.52, 0.38, 0.25];
-        [wet, state] = processMultiDelay(dry, fs, delayTimes, gains, min(0.45, feedback + 0.05), spaceType, state);
+        delayTimes = [0.018, 0.035, 0.061, 0.095, 0.145];
+        gains = reverbAmount * [0.75, 0.62, 0.48, 0.35, 0.24];
+        [wet, state] = processMultiDelay(dry, fs, delayTimes, gains, feedback * 0.75, damping, wetGain, spaceType, state);
 
     case 'cave'
-        delayTimes = [0.080, 0.135, 0.210, 0.310];
-        gains = max(reverbAmount, 0.65) * [0.75, 0.58, 0.42, 0.30];
-        [wet, state] = processMultiDelay(dry, fs, delayTimes, gains, min(0.75, feedback + 0.20), spaceType, state);
+        delayTimes = [0.070, 0.118, 0.182, 0.265, 0.360];
+        gains = reverbAmount * [0.72, 0.54, 0.38, 0.24, 0.14];
+        [wet, state] = processMultiDelay(dry, fs, delayTimes, gains, min(0.44, feedback), damping, wetGain, spaceType, state);
 
-    case 'stage'
-        delayTimes = [0.035, 0.055, 0.083, 0.115];
-        gains = max(reverbAmount, 0.45) * [0.60, 0.48, 0.35, 0.22];
-        [wet, state] = processMultiDelay(dry, fs, delayTimes, gains, min(0.55, feedback + 0.05), spaceType, state);
 
     otherwise
         wet = dry;
 end
 
-yFrame = (1 - mix) * dry + mix * wet;
+yFrame = dry + mix * (wet - dry);
 yFrame = cleanColumn(yFrame);
 yFrame = limitInternal(yFrame);
 state.space.lastMode = spaceType;
 state.space.lastFs = fs;
+state.space.lastMix = mix;
+state.space.lastFeedback = feedback;
+state.space.lastReverbAmount = reverbAmount;
 end
 
 function config = fillSpaceDefaults(config)
@@ -87,6 +83,61 @@ for k = 1:numel(fields)
 end
 end
 
+function params = resolveSpaceParams(spaceType, config)
+defaults = makeDefaultConfig();
+defaultSpace = defaults.space;
+params = struct();
+modeKey = matlab.lang.makeValidName(lower(char(spaceType)));
+
+if isfield(defaultSpace, 'presets') && isfield(defaultSpace.presets, modeKey)
+    params = defaultSpace.presets.(modeKey);
+end
+
+% Top-level legacy controls override presets only when intentionally changed
+% from framework defaults. config.params always wins below.
+genericFields = {'mix', 'delayTime', 'feedback', 'reverbAmount'};
+for k = 1:numel(genericFields)
+    name = genericFields{k};
+    if isfield(config, name) && ~isempty(config.(name))
+        if ~isfield(params, name) || ~valuesEqual(config.(name), defaultSpace.(name))
+            params.(name) = config.(name);
+        end
+    end
+end
+
+skipFields = {'enabled', 'type', 'mode', 'params', 'presetOrder', 'displayPresets', 'hiddenPresets', 'presets'};
+configFields = fieldnames(config);
+for k = 1:numel(configFields)
+    name = configFields{k};
+    if any(strcmp(name, skipFields)) || any(strcmp(name, genericFields))
+        continue;
+    end
+    if ~isempty(config.(name))
+        params.(name) = config.(name);
+    end
+end
+
+if isfield(config, 'params') && isstruct(config.params)
+    params = mergeStruct(params, config.params);
+end
+end
+
+function merged = mergeStruct(base, overrides)
+merged = base;
+names = fieldnames(overrides);
+for k = 1:numel(names)
+    merged.(names{k}) = overrides.(names{k});
+end
+end
+
+function tf = valuesEqual(a, b)
+try
+    tf = isequaln(a, b);
+catch
+    tf = isequal(a, b);
+end
+end
+
 function spaceType = getSpaceType(config)
 if isfield(config, 'type') && ~isempty(config.type)
     spaceType = char(config.type);
@@ -95,10 +146,13 @@ elseif isfield(config, 'mode') && ~isempty(config.mode)
 else
     spaceType = 'none';
 end
+if strcmpi(spaceType, 'stage')
+    spaceType = 'bathroom';
+end
 end
 
-function [wet, state] = processDelay(x, delaySamples, feedback, modeName, state)
-signature = sprintf('%s_d%d_fb%.6f', lower(modeName), delaySamples, feedback);
+function [wet, state] = processDelay(x, delaySamples, feedback, delayGain, modeName, state)
+signature = sprintf('%s_d%d_fb%.6f_g%.6f', lower(modeName), delaySamples, feedback, delayGain);
 if ~isfield(state.space, 'delaySignature') || ~strcmp(state.space.delaySignature, signature) || ...
         ~isfield(state.space, 'delayBuffer') || numel(state.space.delayBuffer) ~= delaySamples
     state.space.delayBuffer = zeros(delaySamples, 1);
@@ -111,8 +165,8 @@ buffer = state.space.delayBuffer;
 idx = state.space.delayIndex;
 for n = 1:numel(x)
     delayed = buffer(idx);
-    wet(n) = x(n) + feedback * delayed;
-    buffer(idx) = x(n) + feedback * delayed;
+    wet(n) = x(n) + delayGain * delayed;
+    buffer(idx) = limitInternal(x(n) + feedback * delayed);
     idx = idx + 1;
     if idx > delaySamples
         idx = 1;
@@ -122,42 +176,49 @@ state.space.delayBuffer = buffer;
 state.space.delayIndex = idx;
 end
 
-function [wet, state] = processMultiDelay(x, fs, delayTimes, gains, feedback, modeName, state)
+function [wet, state] = processMultiDelay(x, fs, delayTimes, gains, feedback, damping, wetGain, modeName, state)
 delaySamples = arrayfun(@(v) timeToSamples(v, fs, v), delayTimes);
-signature = sprintf('%s_%s_g%s_fb%.6f', lower(modeName), mat2str(delaySamples), mat2str(gains, 4), feedback);
+signature = sprintf('%s_%s_g%s_fb%.6f_dp%.6f_wg%.6f', lower(modeName), mat2str(delaySamples), mat2str(gains, 4), feedback, damping, wetGain);
 if ~isfield(state.space, 'reverbSignature') || ~strcmp(state.space.reverbSignature, signature) || ...
         ~isfield(state.space, 'reverbBuffers') || numel(state.space.reverbBuffers) ~= numel(delaySamples)
     state.space.reverbBuffers = cell(numel(delaySamples), 1);
     state.space.reverbIndices = ones(numel(delaySamples), 1);
+    state.space.reverbDampStates = zeros(numel(delaySamples), 1);
     for k = 1:numel(delaySamples)
         state.space.reverbBuffers{k} = zeros(delaySamples(k), 1);
     end
     state.space.reverbSignature = signature;
+elseif ~isfield(state.space, 'reverbDampStates') || numel(state.space.reverbDampStates) ~= numel(delaySamples)
+    state.space.reverbDampStates = zeros(numel(delaySamples), 1);
 end
 
 wet = zeros(size(x));
 buffers = state.space.reverbBuffers;
 indices = state.space.reverbIndices;
-normalizer = 1 + sum(abs(gains));
+dampStates = state.space.reverbDampStates;
+normalizer = max(1, 0.68 * sum(abs(gains)));
 
 for n = 1:numel(x)
-    acc = x(n);
+    wetDelta = 0;
     for k = 1:numel(delaySamples)
         idx = indices(k);
-        delayed = buffers{k}(idx);
-        acc = acc + gains(k) * delayed;
-        buffers{k}(idx) = x(n) + feedback * delayed;
+        delayedRaw = buffers{k}(idx);
+        delayed = (1 - damping) * delayedRaw + damping * dampStates(k);
+        dampStates(k) = delayed;
+        wetDelta = wetDelta + gains(k) * delayed;
+        buffers{k}(idx) = limitInternal(x(n) + feedback * delayed);
         idx = idx + 1;
         if idx > delaySamples(k)
             idx = 1;
         end
         indices(k) = idx;
     end
-    wet(n) = acc / normalizer;
+    wet(n) = x(n) + wetGain * wetDelta / normalizer;
 end
 
 state.space.reverbBuffers = buffers;
 state.space.reverbIndices = indices;
+state.space.reverbDampStates = dampStates;
 end
 
 function samples = timeToSamples(timeSeconds, fs, defaultSeconds)
@@ -165,7 +226,7 @@ if isempty(timeSeconds) || ~isfinite(double(timeSeconds)) || double(timeSeconds)
     timeSeconds = defaultSeconds;
 end
 samples = round(abs(double(timeSeconds)) * fs);
-samples = max(1, min(samples, max(1, round(2 * fs))));
+samples = max(1, min(samples, max(1, round(1.5 * fs))));
 end
 
 function value = getFieldOrDefault(s, fieldName, defaultValue)
@@ -181,7 +242,11 @@ value = min(max(double(value), 0), 1);
 end
 
 function value = clampFeedback(value)
-value = min(max(double(value), 0), 0.85);
+value = min(max(double(value), 0), 0.70);
+end
+
+function value = clampGain(value)
+value = min(max(double(value), 0), 2.5);
 end
 
 function x = cleanColumn(x)
