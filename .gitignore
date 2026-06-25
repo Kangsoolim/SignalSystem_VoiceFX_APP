@@ -3,6 +3,17 @@
 /results/figures/
 /results/sample_validation/
 /results/preprocess_validation/
+/results/stage3_noise_filter/
+/results/stage3_sample_audition/
+/results/stage3_sample_audition_v2/
+/results/stage3_sample_audition_v3/
+/results/stage4_fx_audition/
+/results/stage4_fx_audition_curated/
+/results/stage4_fx_audition_curated_v2/
+/results/stage4_fx_audition_curated_v3/
+/results/stage5_space_validation/
+/results/archive/
+/results/final_fx/
 
 # MATLAB autosave and backup files
 *.asv
