@@ -35,9 +35,11 @@ switch lower(noiseType)
     case 'none'
         return;
     case 'white'
-        yFrame = yFrame + makeWhiteNoise(yFrame, noiseConfig);
+        [whiteNoise, state] = makeWhiteNoise(yFrame, fs, noiseConfig, state);
+        yFrame = yFrame + whiteNoise;
     case 'hum50'
-        yFrame = yFrame + makeHumNoise(numel(yFrame), fs, noiseConfig);
+        [humNoise, state] = makeHumNoise(numel(yFrame), fs, noiseConfig, state);
+        yFrame = yFrame + humNoise;
     case 'impulse'
         yFrame = yFrame + makeImpulseNoise(numel(yFrame), noiseConfig);
     otherwise
@@ -57,16 +59,13 @@ else
 end
 end
 
-function noise = makeWhiteNoise(x, noiseConfig)
+function [noise, state] = makeWhiteNoise(x, fs, noiseConfig, state)
 noise = randn(size(x));
 
-if isfield(noiseConfig, 'snrDb') && ~isempty(noiseConfig.snrDb)
-    signalRms = sqrt(mean(x.^2));
-    if signalRms > eps
-        noiseRms = signalRms / (10^(double(noiseConfig.snrDb) / 20));
-    else
-        noiseRms = getNoiseLevel(noiseConfig);
-    end
+whiteMode = getFieldOrDefault(noiseConfig, 'whiteMode', 'fixed');
+if strcmpi(char(whiteMode), 'smooth_snr')
+    noiseRms = getSmoothedSnrNoiseRms(x, fs, noiseConfig, state);
+    state = updateWhiteNoiseState(x, fs, noiseConfig, state, noiseRms);
 else
     noiseRms = getNoiseLevel(noiseConfig);
 end
@@ -79,15 +78,77 @@ else
 end
 end
 
-function noise = makeHumNoise(numSamples, fs, noiseConfig)
+function noiseRms = getSmoothedSnrNoiseRms(x, fs, noiseConfig, state)
+targetRms = getWhiteSnrTargetRms(x, noiseConfig);
+previousRms = [];
+if isfield(state, 'noise') && isfield(state.noise, 'whiteRms') && ~isempty(state.noise.whiteRms)
+    previousRms = state.noise.whiteRms;
+end
+
+if isempty(previousRms) || ~isfinite(previousRms) || previousRms <= 0 || isempty(fs) || fs <= 0
+    noiseRms = targetRms;
+    return;
+end
+
+frameSeconds = numel(x) / fs;
+if targetRms > previousRms
+    timeConstant = getFieldOrDefault(noiseConfig, 'whiteAttackTime', 0.30);
+else
+    timeConstant = getFieldOrDefault(noiseConfig, 'whiteReleaseTime', 1.00);
+end
+timeConstant = max(0.001, abs(double(timeConstant)));
+alpha = exp(-frameSeconds / timeConstant);
+noiseRms = alpha * previousRms + (1 - alpha) * targetRms;
+end
+
+function targetRms = getWhiteSnrTargetRms(x, noiseConfig)
+floorRms = getFieldOrDefault(noiseConfig, 'whiteFloorLevel', getNoiseLevel(noiseConfig) * 0.10);
+floorRms = abs(double(floorRms));
+if isfield(noiseConfig, 'snrDb') && ~isempty(noiseConfig.snrDb)
+    signalRms = sqrt(mean(x.^2));
+    if signalRms > eps
+        targetRms = max(signalRms / (10^(double(noiseConfig.snrDb) / 20)), floorRms);
+    else
+        targetRms = floorRms;
+    end
+else
+    targetRms = getNoiseLevel(noiseConfig);
+end
+end
+
+function state = updateWhiteNoiseState(x, fs, noiseConfig, state, noiseRms)
+if ~isfield(state, 'noise') || isempty(state.noise)
+    state.noise = struct();
+end
+if strcmpi(char(getFieldOrDefault(noiseConfig, 'whiteMode', 'fixed')), 'smooth_snr') && ...
+        ~isempty(fs) && fs > 0 && ~isempty(x)
+    state.noise.whiteRms = noiseRms;
+end
+end
+
+function [noise, state] = makeHumNoise(numSamples, fs, noiseConfig, state)
 if isempty(fs) || fs <= 0 || numSamples == 0
     noise = zeros(numSamples, 1);
     return;
 end
 
 humAmplitude = getFieldOrDefault(noiseConfig, 'humAmplitude', 0.02);
-t = (0:numSamples-1).' / fs;
-noise = double(humAmplitude) * sin(2 * pi * 50 * t);
+harmonicRatio = getFieldOrDefault(noiseConfig, 'humHarmonicRatio', 0.25);
+harmonicRatio = max(0, min(double(harmonicRatio), 1));
+
+if ~isfield(state, 'noise') || isempty(state.noise)
+    state.noise = struct();
+end
+if ~isfield(state.noise, 'humPhase') || isempty(state.noise.humPhase)
+    state.noise.humPhase = 0;
+end
+
+phaseStep = 2 * pi * 50 / fs;
+phase = state.noise.humPhase + phaseStep * (0:numSamples-1).';
+fundamental = sin(phase);
+secondHarmonic = sin(2 * phase + pi / 7);
+noise = double(humAmplitude) * (fundamental + harmonicRatio * secondHarmonic);
+state.noise.humPhase = mod(state.noise.humPhase + phaseStep * numSamples, 2 * pi);
 end
 
 function noise = makeImpulseNoise(numSamples, noiseConfig)

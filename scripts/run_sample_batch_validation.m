@@ -129,7 +129,7 @@ for n = 1:size(filterSpecs, 1)
     cfg.filter.cutoff = [];
     cfg.filter.notchFreq = 50;
     cfg.filter.bandwidth = 2;
-    cfg.filter.useZeroPhase = true;
+    cfg.filter.useZeroPhase = false;
     [audioOutputs, failures] = runAndWrite(audioOutputs, failures, audioDir, filterSpecs{n, 1}, x, fs, cfg);
 end
 

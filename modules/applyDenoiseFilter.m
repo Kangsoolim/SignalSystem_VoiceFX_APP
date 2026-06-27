@@ -105,14 +105,14 @@ switch lower(filterType)
     case 'lowpass'
         cutoff = getOptionalField(filterConfig, 'cutoff', []);
         if isempty(cutoff)
-            cutoff = getOptionalField(filterConfig, 'highCutoff', 3400);
+            cutoff = getOptionalField(filterConfig, 'lowpassCutoff', getOptionalField(filterConfig, 'highCutoff', 2700));
         end
         cutoff = clampFrequency(cutoff, nyquist, min(3400, 0.45 * fs));
         [b, a] = designButter(order, cutoff / nyquist, 'low');
 
     case 'bandpass'
-        lowCutoff = clampFrequency(getOptionalField(filterConfig, 'lowCutoff', 80), nyquist, 80);
-        highCutoff = clampFrequency(getOptionalField(filterConfig, 'highCutoff', 3400), nyquist, min(3400, 0.45 * fs));
+        lowCutoff = clampFrequency(getOptionalField(filterConfig, 'bandpassLowCutoff', getOptionalField(filterConfig, 'lowCutoff', 150)), nyquist, 150);
+        highCutoff = clampFrequency(getOptionalField(filterConfig, 'bandpassHighCutoff', getOptionalField(filterConfig, 'highCutoff', 3600)), nyquist, min(3600, 0.45 * fs));
         [lowCutoff, highCutoff] = sortBand(lowCutoff, highCutoff, nyquist);
         [b, a] = designButter(order, [lowCutoff, highCutoff] / nyquist, 'bandpass');
 
@@ -122,10 +122,10 @@ switch lower(filterType)
         [b, a] = designNotch(notchFreq, bandwidth, fs);
 
     case 'voice_enhance'
-        lowCutoff = clampFrequency(getOptionalField(filterConfig, 'lowCutoff', 80), nyquist, 80);
-        highCutoff = clampFrequency(getOptionalField(filterConfig, 'highCutoff', 4000), nyquist, min(4000, 0.45 * fs));
+        lowCutoff = clampFrequency(getOptionalField(filterConfig, 'voiceLowCutoff', getOptionalField(filterConfig, 'lowCutoff', 95)), nyquist, 95);
+        highCutoff = clampFrequency(getOptionalField(filterConfig, 'voiceHighCutoff', getOptionalField(filterConfig, 'highCutoff', 4800)), nyquist, min(4800, 0.45 * fs));
         [lowCutoff, highCutoff] = sortBand(lowCutoff, highCutoff, nyquist);
-        [b, a] = designButter(max(2, order), [lowCutoff, highCutoff] / nyquist, 'bandpass');
+        [b, a] = designButter(max(2, min(order, 3)), [lowCutoff, highCutoff] / nyquist, 'bandpass');
 
     otherwise
         b = [];
