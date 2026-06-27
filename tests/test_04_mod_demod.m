@@ -66,6 +66,16 @@ assert(~isempty(baseInfo.f) && baseInfo.f(1) == 0, 'Baseband spectrum must start
 assert(~isempty(modInfo.f) && modInfo.f(end) <= fs / 2 + fs / numel(modSig), 'Modulated spectrum must stay within Nyquist.');
 assert(numel(demodInfo.f) == numel(demodInfo.mag), 'Demodulated spectrum f/mag lengths must match.');
 assert(all(isfinite(baseInfo.magDb)) && all(isfinite(modInfo.magDb)) && all(isfinite(demodInfo.magDb)), 'Spectra must be finite.');
+carrierDb = magAt(modInfo, modConfig.carrierFreq);
+lower300Db = magAt(modInfo, modConfig.carrierFreq - 300);
+upper300Db = magAt(modInfo, modConfig.carrierFreq + 300);
+lower900Db = magAt(modInfo, modConfig.carrierFreq - 900);
+upper900Db = magAt(modInfo, modConfig.carrierFreq + 900);
+assert(carrierDb > -12, 'AM spectrum should show a visible carrier near 4 kHz.');
+assert(min([lower300Db, upper300Db, lower900Db, upper900Db]) > -35, ...
+    'AM spectrum should show visible sidebands around the carrier.');
+assert(magAt(demodInfo, 300) > magAt(demodInfo, modConfig.carrierFreq) + 25, ...
+    'Demodulated spectrum should recover low-frequency content and suppress the carrier.');
 
 figureDir = fullfile(projectRoot, 'results', 'figures');
 if ~exist(figureDir, 'dir')
@@ -130,3 +140,8 @@ assert(exist(waveformPath, 'file') == 2, 'AM waveform figure should be saved.');
 assert(exist(spectrumPath, 'file') == 2, 'AM spectrum figure should be saved.');
 
 disp('test_04_mod_demod passed: AM modulation/demodulation and figures work.');
+
+function valueDb = magAt(info, freq)
+[~, idx] = min(abs(info.f - freq));
+valueDb = info.magDb(idx);
+end

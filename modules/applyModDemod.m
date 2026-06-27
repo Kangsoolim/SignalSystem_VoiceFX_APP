@@ -4,6 +4,10 @@ function [modSig, demodSig, state] = applyModDemod(x, fs, modDemodConfig, state)
 %       [modSig, demodSig, state] = applyModDemod(...)
 %   For am_modulate, both modSig and demodSig carry the modulated signal so
 %   processAudioFrame can keep using the second output as the primary signal.
+%   M08 is intended for file-mode/report figures that show carrier-sideband
+%   spectrum shifting and lowpass recovery. Keep modDemod.enabled false for
+%   ordinary realtime voice/effect processing unless a dedicated App panel
+%   explicitly opts into this demonstration.
 
 if nargin < 3 || isempty(modDemodConfig)
     modDemodConfig = struct('enabled', false, 'mode', 'none', 'params', struct());
@@ -151,6 +155,9 @@ else
 end
 
 y = y - mean(y);
+% Full-file report exports can normalize recovered AM audio for convenient
+% listening. Avoid this in per-frame realtime paths because each frame would
+% be scaled independently.
 if isTruthy(getFieldOrDefault(config, 'normalizeOutput', true))
     peak = max(abs(y));
     if peak > eps
