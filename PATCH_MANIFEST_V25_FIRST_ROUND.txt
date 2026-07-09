@@ -1,0 +1,32 @@
+V2.5 FIRST ROUND PATCH MANIFEST
+
+MODIFIED
+core/makeDefaultConfig.m
+modules/addNoise.m
+modules/applyDenoiseFilter.m
+modules/adaptVoiceStyleConfig.m
+modules/applyVoiceStyle.m
+modules/processVoiceFileHQ.m
+tests/run_voice_core_suite.m
+项目大纲完成情况跟踪表.csv（仓库内原编码文件名，已按子功能更新）
+
+ADDED
+modules/warpSpectralEnvelope.m
+modules/shapeVoiceExcitation.m
+modules/applyStyleDynamics.m
+scripts/run_v25_first_round_audition.m
+scripts/run_v25_noise_denoise_demo.m
+tests/test_19_four_style_voice_core.m
+tests/test_20_vad_aware_denoise.m
+tests/test_21_noise_upgrade.m
+tests/run_v25_first_round_suite.m
+INSTALL_V25_FIRST_ROUND.md
+
+VALIDATION PERFORMED IN BUILD ENVIRONMENT
+- MATLAB grammar static parse on every modified/new .m file: no syntax-tree errors.
+- Numerical cross-check of VAD-aware denoise equations in an independent Python translation: noise-only RMS attenuation and speech-region correlation satisfied the test thresholds.
+- Numerical cross-check of pink-like spectral balance: low/high spectral energy ratio exceeds white-noise ratio.
+- ZIP integrity check must pass before delivery.
+
+LIMITATION
+The build environment does not contain MATLAB R2025b, so no claim is made that the full MATLAB runtime suite was executed here. Run tests/run_v25_first_round_suite.m locally before commit.

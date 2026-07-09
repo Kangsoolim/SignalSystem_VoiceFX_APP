@@ -1,0 +1,41 @@
+V2.5 SECOND ROUND VALIDATION REPORT
+
+Scope
+- Wide-source four-style adaptation
+- High-source male artifact mitigation strategy
+- Stronger elder-style mapping
+- Per-source, non-overwriting result preservation
+- One switch-controlled pipeline runner
+
+Checks completed in build environment
+1. MATLAB grammar static parsing
+   Modified/new MATLAB files checked: 15
+   Syntax-tree errors in modified/new files: 0
+
+2. Independent numerical mapping cross-check
+   Representative source F0 medians checked: 90, 150, 220, 305 Hz.
+   For a 305 Hz source, the new mapping produced approximately:
+     male_deep_gentle    pitch -4.90 st, formant scale 0.815
+     female_gentle_sweet pitch -1.49 st, formant scale 1.131
+     child_bright_soft   pitch -1.23 st, formant scale 1.163
+     elder_warm_steady   pitch -3.45 st, formant scale 0.903
+   This confirms the old high-source male hard clamp at -7 st is avoided and
+   residual source-target distance is redirected into envelope/formant shaping.
+
+3. Result preservation design checks
+   - Output paths are organized by input basename.
+   - Each invocation creates a timestamped run directory.
+   - Same-second collisions append _02, _03, ... instead of overwriting.
+   - Bare filenames are resolved from the sibling Voice_test directory.
+
+4. Course-module switch checks
+   The single config-controlled chain retains independent switches for:
+   noise, filter, voice, fx, space, modDemod and display.
+
+Important limitation
+The build environment does not contain MATLAB R2025b or Octave. Therefore this
+report does not claim that the MATLAB runtime suite was executed here. Run:
+
+  run('tests/run_v25_first_round_suite.m');
+
+on the user's MATLAB installation before Git commit.

@@ -17,19 +17,37 @@ config.audio.inputType = 'double_column';
 config.audio.removeDC = false;
 config.audio.normalizeInput = false;
 config.audio.normalizeTargetPeak = 0.99;
+config.audio.monoMode = 'energy_weighted';
+config.audio.inputGainDb = 0;
+config.audio.protectInputPeak = true;
+config.audio.protectPeak = 0.995;
 
 config.noise = struct();
 config.noise.enabled = false;
 config.noise.type = 'none';
 config.noise.mode = 'none';
-config.noise.whiteMode = 'fixed';
 config.noise.snrDb = 18;
 config.noise.noiseLevel = 0.022;
+config.noise.minimumNoiseRms = 0;
+config.noise.seed = [];
+% SNR reference smoothing prevents frame-to-frame noise pumping.
+config.noise.snrReferenceAttackTime = 0.12;
+config.noise.snrReferenceReleaseTime = 1.20;
+% Power-line scenario.
+config.noise.mainsFreq = 50;
+config.noise.humNumHarmonics = 4;
+config.noise.humHarmonicDecay = 0.55;
+% Transient/keyboard-like scenario.
+config.noise.impulseProbability = 0.0015;
+config.noise.impulseClickWidthMs = 3.0;
+config.noise.impulseResonanceHz = 1800;
+% Synthetic babble-like scenario.
+config.noise.babbleVoices = 6;
+% Legacy fields are kept so old scripts remain callable.
+config.noise.whiteMode = 'fixed';
 config.noise.whiteFloorLevel = 0.012;
 config.noise.whiteAttackTime = 0.30;
 config.noise.whiteReleaseTime = 1.00;
-config.noise.seed = [];
-config.noise.impulseProbability = 0.0015;
 config.noise.humAmplitude = 0.04;
 config.noise.humHarmonicRatio = 0.35;
 config.noise.params = struct();
@@ -48,8 +66,27 @@ config.filter.bandpassHighCutoff = 3600;
 config.filter.voiceLowCutoff = 95;
 config.filter.voiceHighCutoff = 4800;
 config.filter.notchFreq = 50;
-config.filter.bandwidth = 4;
+config.filter.bandwidth = 2;
 config.filter.useZeroPhase = false;
+% speech_clean is a causal, low-latency DSP enhancement preset. It uses a
+% rumble high-pass, narrow mains-hum notches and a eight-band VAD-aware adaptive
+% Wiener-like gain controller with temporal smoothing.
+config.filter.speechCleanLowCutoff = 70;
+config.filter.mainsFreq = 50;
+config.filter.mainsHarmonics = 4;
+config.filter.mainsBandwidth = 1.5;
+config.filter.noiseReductionStrength = 0.72;
+config.filter.noiseFloorGain = 0.24;
+config.filter.noiseOverSubtraction = 1.10;
+config.filter.vadNoiseUpdateFastTime = 0.16;
+config.filter.vadNoiseUpdateSlowTime = 4.50;
+config.filter.vadInitialNoiseFloorDb = -52;
+config.filter.vadAttackTime = 0.05;
+config.filter.vadReleaseTime = 0.30;
+config.filter.noiseRiseTime = 2.0;
+config.filter.noiseFallTime = 0.12;
+config.filter.gainAttackTime = 0.04;
+config.filter.gainReleaseTime = 0.18;
 config.filter.params = struct();
 
 config.voice = struct();
@@ -57,13 +94,50 @@ config.voice.enabled = false;
 config.voice.type = 'none';
 config.voice.mode = 'none';
 config.voice.mix = 1.0;
-config.voice.intensity = 0.6;
+config.voice.intensity = 0.70;
 config.voice.pitchShift = 0;
 config.voice.lowGain = 0;
 config.voice.highGain = 0;
 config.voice.roughness = 0.15;
 config.voice.modFreq = 35;
 config.voice.params = struct();
+config.voice.params.adaptiveEnabled = true;
+config.voice.params.calibrationSeconds = 0.80;
+config.voice.params.adaptationStrength = 0.78;
+% Naturalness-first planner controls. Broad class regions guide the
+% direction, while source pitch/prosody/spectrum decide the amount.
+config.voice.params.naturalnessPriority = true;
+config.voice.params.preserveTiming = true;
+config.voice.params.pitchMaxDelayMs = 35;
+config.voice.params.pitchSmoothingTime = 0.10;
+config.voice.params.silenceBypassDb = -58;
+config.voice.params.deEsserEnabled = true;
+config.voice.params.deEsserThreshold = 0.42;
+config.voice.params.deEsserMaxReductionDb = 4.0;
+% V2.5 four-style source-filter-inspired controls. The adaptive mapper
+% overrides these per style while the defaults keep old aliases safe.
+config.voice.params.formantScale = 1.0;
+config.voice.params.formantScaleHint = 1.0;
+config.voice.params.envelopeWarpStrength = 0.28;
+config.voice.params.envelopeWarpMaxGainDb = 3.0;
+config.voice.params.envelopeWarpSmoothingTime = 0.10;
+config.voice.params.hqCepstralOrder = 40;
+config.voice.params.excitationWarmth = 0.10;
+config.voice.params.breathiness = 0.02;
+config.voice.params.spectralTiltDb = 0;
+config.voice.params.styleRoughness = 0.02;
+config.voice.params.roughnessRateHz = 4.6;
+config.voice.params.elderTremorDepth = 0.018;
+config.voice.params.elderTremorRateHz = 4.8;
+config.voice.params.elderMicroDelayMs = 0.12;
+config.voice.params.compressorThresholdDb = -20;
+config.voice.params.compressorRatio = 1.7;
+config.voice.params.compressorMakeupDb = 0.4;
+config.voice.params.compressorAttackTime = 0.06;
+config.voice.params.compressorReleaseTime = 0.28;
+config.voice.params.offlinePreserveFormants = true;
+config.voice.params.offlineLockPhase = true;
+config.voice.params.offlineCepstralOrder = 30;
 
 config.fx = struct();
 config.fx.enabled = false;
@@ -126,11 +200,14 @@ config.modDemod.params = struct();
 
 config.output = struct();
 config.output.limitEnabled = true;
-config.output.peakLimit = 1.0;
-config.output.limitRange = [-1, 1];
-% Default remains hard clipping to preserve existing baseline artifacts.
-% Set limiterMode to 'soft' only when a smoother safety guard is desired.
-config.output.limiterMode = 'hard';
+config.output.peakLimit = 0.98;
+config.output.limitRange = [-0.98, 0.98];
+config.output.limiterMode = 'soft';
+config.output.softDrive = 1.15;
+% Generated audio is organized by source filename and unique run directory.
+config.output.resultRoot = fullfile('results', 'audio', 'by_source');
+config.output.preserveRuns = true;
+config.output.organizeBySource = true;
 
 config.display = struct();
 config.display.enabled = false;

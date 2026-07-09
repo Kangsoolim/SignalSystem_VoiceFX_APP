@@ -1,0 +1,15 @@
+VoiceFX optimized patch v2
+
+Fixes after MATLAB runtime feedback:
+1. test_01_preprocess_limiter.m now explicitly compares soft limiting with a hard-limiter baseline instead of accidentally comparing soft vs soft.
+2. run_voice_core_suite.m now resolves every test by absolute path from mfilename('fullpath'), so running the suite from tests/ no longer creates tests/tests paths.
+3. safeLimiter.m enforces softDrive >= 1.0 so the soft-knee branch cannot become an expander inside the knee region.
+
+Recommended MATLAB commands:
+cd('D:\Projects\SignalSystem_VoiceFX_APP');
+addpath(genpath(pwd));
+clear functions;
+rehash;
+run('tests/test_00_framework_smoke.m');
+run('tests/test_01_preprocess_limiter.m');
+run('tests/run_voice_core_suite.m');

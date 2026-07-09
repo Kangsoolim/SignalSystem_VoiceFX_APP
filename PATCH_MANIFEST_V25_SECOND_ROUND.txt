@@ -1,0 +1,23 @@
+V2.5 SECOND ROUND PATCH MANIFEST
+
+Modified
+- core/makeDefaultConfig.m
+- modules/adaptVoiceStyleConfig.m
+- modules/applyVoiceStyle.m
+- modules/processVoiceFileHQ.m
+- modules/warpSpectralEnvelope.m
+- scripts/run_v25_first_round_audition.m
+- scripts/run_v25_noise_denoise_demo.m
+- scripts/run_v25_configurable_pipeline.m
+- tests/run_v25_first_round_suite.m
+- tests/run_voice_core_suite.m
+
+Added
+- core/resolveVoiceTestInput.m
+- core/createUniqueResultRun.m
+- tests/test_22_extreme_source_adaptation.m
+- tests/test_23_result_run_preservation.m
+- tests/test_24_module_switches.m
+- INSTALL_V25_SECOND_ROUND.md
+- V25_SECOND_ROUND_VALIDATION_REPORT.txt
+- PATCH_MANIFEST_V25_SECOND_ROUND.txt

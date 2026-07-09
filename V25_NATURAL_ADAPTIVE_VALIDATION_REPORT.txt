@@ -1,0 +1,59 @@
+VoiceFX V2.5 Natural Adaptive Final - Validation Report
+==============================================================
+
+Scope
+-----
+Naturalness-priority adaptive planner and full-file voice chain.
+
+Static checks
+-------------
+PASS | delimiter_balance | core/makeDefaultConfig.m
+PASS | delimiter_balance | modules/adaptVoiceStyleConfig.m
+PASS | delimiter_balance | modules/processVoiceFileHQ.m
+PASS | delimiter_balance | scripts/run_v25_first_round_audition.m
+PASS | delimiter_balance | scripts/run_v25_source_diagnostics.m
+PASS | delimiter_balance | tests/test_19_four_style_voice_core.m
+PASS | delimiter_balance | tests/test_22_extreme_source_adaptation.m
+PASS | delimiter_balance | tests/test_25_final_audio_case_mapping.m
+PASS | delimiter_balance | tests/test_28_naturalness_adaptive_planner.m
+PASS | delimiter_balance | tests/run_v25_final_suite.m
+PASS | delimiter_balance | tests/run_v25_first_round_suite.m
+PASS | delimiter_balance | tests/run_voice_core_suite.m
+PASS | suite_references | tests/run_v25_final_suite.m
+PASS | suite_references | tests/run_v25_first_round_suite.m
+PASS | suite_references | tests/run_voice_core_suite.m
+PASS | no_aggressive_hq_warp | modules/processVoiceFileHQ.m
+PASS | no_elder_microdelay_stage | modules/processVoiceFileHQ.m
+
+Additional active-chain checks
+--------------------------------
+PASS | aggressive HQ cepstral envelope warp is not called by processVoiceFileHQ
+PASS | elder micro-delay stage is not called by processVoiceFileHQ
+PASS | all final-suite test references exist
+
+Independent numeric planner grid
+--------------------------------
+Values below mirror the MATLAB naturalness planner equations.
+ sourceF0  male_deep_gentle  male_deep_gentle_out  female_gentle_sweet  female_gentle_sweet_out  child_bright_soft  child_bright_soft_out  elder_warm_steady  elder_warm_steady_out
+  90.0000             1.745                  99.5                4.490                    116.6              5.456                  123.3              1.321                   97.1
+ 120.0000             0.000                 120.0                3.957                    150.8              5.357                  163.5              0.000                  120.0
+ 150.0000             0.000                 150.0                2.017                    168.5              5.004                  200.3              0.000                  150.0
+ 170.0000             0.000                 170.0                0.000                    170.0              4.487                  220.3              0.000                  170.0
+ 200.0000            -0.437                 195.0                0.000                    200.0              3.099                  239.2              0.000                  200.0
+ 220.0000            -1.968                 196.4                0.000                    220.0              1.795                  244.0              0.000                  220.0
+ 305.8911            -4.466                 236.3               -0.885                    290.6              0.000                  305.9             -2.609                  263.1
+ 340.0000            -4.659                 259.8               -2.025                    302.5              0.000                  340.0             -2.828                  288.8
+ 392.0000            -4.772                 297.6               -2.470                    339.9             -0.523                  380.3             -2.903                  331.5
+
+Observed high-source example around 305.8911 Hz
+------------------------------------------------
+male_deep_gentle: raw=-7.795 st, budget=4.836 st, planned shift=-4.466 st, outputF0~236.3 Hz, prosodyRetention=0.990
+female_gentle_sweet: raw=-0.924 st, budget=2.555 st, planned shift=-0.885 st, outputF0~290.6 Hz, prosodyRetention=0.990
+child_bright_soft: raw=0.000 st, budget=5.475 st, planned shift=0.000 st, outputF0~305.9 Hz, prosodyRetention=0.990
+elder_warm_steady: raw=-4.200 st, budget=2.920 st, planned shift=-2.609 st, outputF0~263.1 Hz, prosodyRetention=0.990
+
+Important limitation
+--------------------
+No MATLAB R2025b runtime is available in this execution environment.
+Therefore, actual MATLAB execution and listening validation must be performed
+on the user's MATLAB installation. This report does not claim otherwise.
