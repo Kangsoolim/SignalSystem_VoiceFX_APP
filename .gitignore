@@ -1,6 +1,8 @@
 # Generated results from demos, tests, and validation runs
 /results/audio/
+/results/app_test/
 /results/figures/
+/results/report_figures_*/
 /results/sample_validation/
 /results/preprocess_validation/
 /results/stage3_noise_filter/
@@ -31,3 +33,9 @@
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Personal writing / report drafts
+*.docx
+*.doc
+~$*.docx
+/实验报告写作素材整理.md

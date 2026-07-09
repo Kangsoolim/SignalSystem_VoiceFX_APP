@@ -11,7 +11,7 @@
 
 把补丁根目录中的全部内容复制到：
 
-`D:\Projects\SignalSystem_VoiceFX_APP`
+`本仓库根目录`
 
 Windows 选择：
 
@@ -23,7 +23,7 @@ Windows 选择：
 ## MATLAB 最终测试
 
 ```matlab
-cd('D:\Projects\SignalSystem_VoiceFX_APP');
+% 在 MATLAB 中打开本仓库根目录后运行：
 addpath(genpath(pwd));
 clear functions;
 rehash;

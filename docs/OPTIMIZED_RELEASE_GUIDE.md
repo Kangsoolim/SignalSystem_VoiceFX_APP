@@ -21,13 +21,13 @@
 将 patch ZIP 解压后，把其中的 `core/`、`modules/`、`scripts/`、`tests/`、`realtime/`、`docs/` 和 `README.md` 覆盖到：
 
 ```text
-D:\Projects\SignalSystem_VoiceFX_APP
+本仓库根目录
 ```
 
 ## MATLAB 测试
 
 ```matlab
-cd('D:\Projects\SignalSystem_VoiceFX_APP');
+% 在 MATLAB 中打开本仓库根目录后运行：
 addpath(genpath(pwd));
 clear functions;
 rehash;

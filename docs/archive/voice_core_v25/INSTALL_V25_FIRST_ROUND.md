@@ -31,14 +31,14 @@
 
 将补丁包中的目录按原有相对路径覆盖到当前仓库根目录：
 
-`D:\Projects\SignalSystem_VoiceFX_APP`
+`本仓库根目录`
 
 不要删除 `.git`，不要重新初始化仓库。
 
 ## MATLAB 验证顺序
 
 ```matlab
-cd('D:\Projects\SignalSystem_VoiceFX_APP');
+% 在 MATLAB 中打开本仓库根目录后运行：
 addpath(genpath(pwd));
 clear functions;
 rehash;

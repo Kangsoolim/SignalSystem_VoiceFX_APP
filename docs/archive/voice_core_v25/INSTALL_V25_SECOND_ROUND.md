@@ -41,7 +41,7 @@ existing repository folders and do not remove `.git`.
 ## MATLAB validation
 
 ```matlab
-cd('D:\Projects\SignalSystem_VoiceFX_APP');
+% 在 MATLAB 中打开本仓库根目录后运行：
 addpath(genpath(pwd));
 clear functions;
 rehash;
@@ -51,7 +51,7 @@ run('tests/run_v25_first_round_suite.m');
 ## Four-style audition from Voice_test
 
 For:
-`D:\Projects\Voice_test\zongcisheng.wav`
+`Voice_test\zongcisheng.wav`
 
 run:
 

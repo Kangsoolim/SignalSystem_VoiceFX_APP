@@ -37,7 +37,7 @@ The names remain compatible with the existing App/scripts, but the internal targ
 
 Copy all contents of this patch root into:
 
-D:\Projects\SignalSystem_VoiceFX_APP
+本仓库根目录
 
 Choose:
 - merge folders
@@ -49,7 +49,7 @@ Do not delete the project directory and do not run git init.
 
 In MATLAB:
 
-cd('D:\Projects\SignalSystem_VoiceFX_APP');
+% 在 MATLAB 中打开本仓库根目录后运行：
 addpath(genpath(pwd));
 clear functions;
 rehash;

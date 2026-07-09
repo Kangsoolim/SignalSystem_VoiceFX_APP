@@ -4,14 +4,14 @@
 
 Copy the **contents** of the final patch folder into the repository root:
 
-`D:\Projects\SignalSystem_VoiceFX_APP`
+`本仓库根目录`
 
 Merge folders and replace same-name files. Do not delete the repository's existing folders and do not remove `.git`.
 
 ## 2. Clear MATLAB function cache
 
 ```matlab
-cd('D:\Projects\SignalSystem_VoiceFX_APP');
+% 在 MATLAB 中打开本仓库根目录后运行：
 addpath(genpath(pwd));
 clear functions;
 rehash;
@@ -29,7 +29,7 @@ Expected final line:
 
 ## 4. Inspect one source mapping
 
-For a file in sibling `D:\Projects\Voice_test`:
+For a file in a sibling `Voice_test` directory:
 
 ```matlab
 report = run_v25_source_diagnostics('zongcisheng.wav');

@@ -6,7 +6,7 @@ Fixes after MATLAB runtime feedback:
 3. safeLimiter.m enforces softDrive >= 1.0 so the soft-knee branch cannot become an expander inside the knee region.
 
 Recommended MATLAB commands:
-cd('D:\Projects\SignalSystem_VoiceFX_APP');
+% 在 MATLAB 中打开本仓库根目录后运行：
 addpath(genpath(pwd));
 clear functions;
 rehash;
