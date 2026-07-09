@@ -230,14 +230,14 @@ intensity = clamp01(getField(config,'intensity',0.72));
 
 switch lower(mode)
     case 'male'
-        bodyGain = 0.010*intensity;
-        presenceGain = -0.006*intensity;
+        bodyGain = 0.026*intensity;
+        presenceGain = 0.014*intensity;
     case 'female'
         bodyGain = -0.008*intensity;
         presenceGain = 0.018*intensity;
     case 'child'
-        bodyGain = -0.020*intensity;
-        presenceGain = 0.030*intensity;
+        bodyGain = -0.014*intensity;
+        presenceGain = 0.014*intensity;
     case 'elder'
         bodyGain = 0.008*intensity;
         presenceGain = -0.018*intensity;
@@ -257,7 +257,15 @@ if ~any(strcmpi(mode,{'female','child'})) || ...
     return;
 end
 
-cutoff = min(5200,0.40*fs);
+if strcmpi(mode,'child')
+    cutoff = min(4300,0.36*fs);
+    defaultThreshold = 0.34;
+    defaultReductionDb = 5.0;
+else
+    cutoff = min(5200,0.40*fs);
+    defaultThreshold = 0.42;
+    defaultReductionDb = 3.0;
+end
 if cutoff <= 1000
     y = x;
     return;
@@ -267,9 +275,9 @@ end
 high = x-low;
 ratio = sqrt(mean(high.^2))/(sqrt(mean(x.^2))+eps);
 threshold = clamp(double(getParam(config, ...
-    'deEsserThreshold',0.42)),0.2,0.8);
+    'deEsserThreshold',defaultThreshold)),0.2,0.8);
 maxReductionDb = clamp(double(getParam(config, ...
-    'deEsserMaxReductionDb',3.0)),0,6);
+    'deEsserMaxReductionDb',defaultReductionDb)),0,6);
 
 if ratio <= threshold
     gain = 1;

@@ -33,4 +33,46 @@ assert(strcmp(diagnostics.status, 'ok'), 'HQ diagnostics status must be ok.');
 assert(isfield(diagnostics.voice, 'adaptive'), ...
     'HQ diagnostics must include adaptive mapping information.');
 
-disp('test_16_offline_hq_voice passed: full-utterance HQ path is numerically safe.');
+maleConfig = config;
+maleConfig.voice.type = 'male';
+maleConfig.voice.mode = 'male';
+[maleY, ~, maleDiag] = processAudioFileHighQuality(x, fs, maleConfig);
+assert(numel(maleY) == numel(x) && all(isfinite(maleY)), ...
+    'HQ male output must remain safe.');
+assert(maleDiag.voice.adaptive.recommendedPitchShift < -1.2, ...
+    'HQ male must keep an audible downward/source-masculine shift.');
+assert(maleDiag.voice.adaptive.formantScale < 0.97, ...
+    'HQ male must apply an audible but bounded formant direction.');
+
+childConfig = config;
+childConfig.voice.type = 'child';
+childConfig.voice.mode = 'child';
+[childY, ~, childDiag] = processAudioFileHighQuality(x, fs, childConfig);
+assert(numel(childY) == numel(x) && all(isfinite(childY)), ...
+    'HQ child output must remain safe.');
+assert(childDiag.voice.adaptive.recommendedPitchShift < 8.2, ...
+    'HQ child pitch lift should stay below the harsh/telephone range.');
+assert(childDiag.voice.adaptive.formantScale <= 1.15, ...
+    'HQ child formant lift should remain bounded to reduce electric artifacts.');
+
+highRatio = highBandRatio(childY, fs) / max(highBandRatio(x, fs), eps);
+assert(highRatio < 2.6, ...
+    'HQ child should not create excessive high-frequency harshness.');
+
+disp('test_16_offline_hq_voice passed: full-utterance HQ path is numerically safe and audible.');
+
+function ratio = highBandRatio(x, fs)
+x = double(x(:));
+n = numel(x);
+if n == 0
+    ratio = 0;
+    return;
+end
+idx = (0:n-1).';
+w = 0.5 - 0.5*cos(2*pi*idx/max(n-1,1));
+mag = abs(fft(x.*w));
+count = floor(n/2)+1;
+mag = mag(1:count).^2;
+freq = (0:count-1).'*fs/n;
+ratio = sum(mag(freq >= 4200)) / max(sum(mag), eps);
+end

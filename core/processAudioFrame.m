@@ -18,7 +18,10 @@ else
     inputLength = size(xFrame, 1);
 end
 
-yFrame = preprocessAudio(xFrame, fs, config);
+framePreprocessConfig = config;
+framePreprocessConfig.audio.removeDC = false;
+framePreprocessConfig.audio.normalizeInput = false;
+yFrame = preprocessAudio(xFrame, fs, framePreprocessConfig);
 
 [yFrame, state] = addNoise(yFrame, fs, config.noise, state);
 [yFrame, state] = applyDenoiseFilter(yFrame, fs, config.filter, state);

@@ -86,17 +86,19 @@ end
 
 recommendedShift = smoothBudgetedShift(rawShift, pitchBudget);
 
-% Naturalness remains the first objective, but the female and child
-% categories also need a minimum audible separation from low-pitched or
-% already-high adult sources. This floor is source dependent: low sources
-% receive more upward movement; high sources receive only a small lift.
-% It is never a fixed target F0.
-minimumStyleShift = minimumPositiveStyleShift(style, sourceF0);
+% Naturalness remains the first objective, but every audible voice category
+% still needs a source-dependent separation floor. Male/elder floors are
+% signed downward and deliberately bounded so they do not become the old
+% over-heavy "fat male" failure; female/child floors remain upward.
+minimumStyleShift = minimumStyleSeparationShift(style, sourceF0);
 floorReliability = clamp( ...
     0.88 + 0.08*confidenceFactor + 0.04*prosodyRetention, 0.88, 1.0);
 minimumStyleShift = minimumStyleShift * floorReliability;
 styleSeparationApplied = false;
 if minimumStyleShift > 0 && recommendedShift < minimumStyleShift
+    recommendedShift = minimumStyleShift;
+    styleSeparationApplied = true;
+elseif minimumStyleShift < 0 && recommendedShift > minimumStyleShift
     recommendedShift = minimumStyleShift;
     styleSeparationApplied = true;
 end
@@ -185,13 +187,19 @@ else
 end
 end
 
-function minShift = minimumPositiveStyleShift(style, sourceF0)
-%MINIMUMPOSITIVESTYLESHIFT Small source-dependent perceptual separation.
-%   The values are smooth engineering floors in semitones. They do not
-%   force one output F0 and they only affect female/child upward conversion.
+function minShift = minimumStyleSeparationShift(style, sourceF0)
+%MINIMUMSTYLESEPARATIONSHIFT Source-dependent audible category floor.
+%   Positive values lift female/child directions. Negative values add a
+%   clear but bounded male/elder direction even when the source already sits
+%   inside a broad target F0 band.
 
 sourceF0 = clamp(double(sourceF0), 60, 500);
 switch canonicalStyle(style)
+    case 'male_deep_gentle'
+        f0Knots = [60 90 110 130 150 170 190 210 230 260 320 500];
+        shiftKnots = [-1.0 -1.3 -1.7 -2.1 -2.4 -2.8 -3.2 -3.7 -4.1 -4.7 -5.2 -5.6];
+        minShift = interp1(f0Knots, shiftKnots, sourceF0, 'linear');
+
     case 'female_gentle_sweet'
         f0Knots = [60 90 110 130 150 170 190 210 230 250 500];
         shiftKnots = [8.0 7.8 7.3 6.3 5.2 4.2 3.2 2.1 0.8 0.0 0.0];
@@ -199,13 +207,18 @@ switch canonicalStyle(style)
 
     case 'child_bright_soft'
         f0Knots = [60 90 110 130 150 180 210 240 270 300 330 380 500];
-        shiftKnots = [9.5 9.5 9.2 8.8 8.2 7.2 6.2 5.0 3.9 2.8 1.9 1.1 0.7];
+        shiftKnots = [8.2 8.2 7.8 7.2 6.6 5.6 4.7 3.8 2.8 1.9 1.3 0.8 0.5];
+        minShift = interp1(f0Knots, shiftKnots, sourceF0, 'linear');
+
+    case 'elder_warm_steady'
+        f0Knots = [60 90 110 130 150 180 210 240 280 340 500];
+        shiftKnots = [-0.4 -0.7 -0.9 -1.1 -1.3 -1.6 -1.9 -2.2 -2.6 -3.0 -3.2];
         minShift = interp1(f0Knots, shiftKnots, sourceF0, 'linear');
 
     otherwise
         minShift = 0;
 end
-minShift = max(double(minShift), 0);
+minShift = double(minShift);
 end
 
 % -------------------------------------------------------------------------
@@ -249,6 +262,15 @@ end
 % a child-like direction needs a higher resonant-envelope placement even
 % when the source F0 is already high.
 switch canonicalStyle(style)
+    case 'male_deep_gentle'
+        lowSourceProtection = clamp((125 - f.f0Median)/80, 0, 1);
+        formantCeiling = 0.945 + 0.025*lowSourceProtection;
+        envelopeFloor = 0.18 - 0.035*lowSourceProtection;
+        formantScale = min(formantScale, formantCeiling);
+        envelopeStrength = max(envelopeStrength, envelopeFloor);
+        lowGain = min(lowGain, 0.004 + 0.010*lowSourceProtection);
+        highGain = max(highGain, -0.040);
+
     case 'female_gentle_sweet'
         lowSourceGap = clamp((205 - f.f0Median)/110, 0, 1);
         formantFloor = 1.045 + 0.055*lowSourceGap;
@@ -260,12 +282,15 @@ switch canonicalStyle(style)
 
     case 'child_bright_soft'
         youthGap = clamp((330 - f.f0Median)/240, 0, 1);
-        formantFloor = 1.105 + 0.065*youthGap;
-        envelopeFloor = 0.30 + 0.07*youthGap;
+        formantFloor = 1.075 + 0.040*youthGap;
+        envelopeFloor = 0.23 + 0.050*youthGap;
         formantScale = max(formantScale, formantFloor);
         envelopeStrength = max(envelopeStrength, envelopeFloor);
-        lowGain = lowGain - (0.015 + 0.018*youthGap);
-        highGain = highGain + (0.012 + 0.018*youthGap);
+        lowGain = lowGain - (0.008 + 0.012*youthGap);
+        highGain = highGain + (0.004 + 0.010*youthGap);
+
+    case 'elder_warm_steady'
+        envelopeStrength = max(envelopeStrength, 0.12);
 end
 
 formantScale = clamp(formantScale, p.formantMin, p.formantMax);
@@ -348,12 +373,12 @@ function p = stylePrior(style)
 % physiological definitions and not demographic classifiers.
 switch canonicalStyle(style)
     case 'male_deep_gentle'
-        p = makePrior([105 195], 5.3, 2.2, ...
-            0.965, 0.025, 0.91, 0.99, ...
-            0.26, 0.38, 2.8, 0.12, ...
-            0.010, -0.030, 1950, 0.30, ...
-            0.12, 0.010, -0.55, 0.010, 4.2, ...
-            -23, 1.28, 0.15, 0.07, 0.28, ...
+        p = makePrior([105 195], 5.8, 2.2, ...
+            0.955, 0.030, 0.90, 0.98, ...
+            0.24, 0.36, 2.8, 0.12, ...
+            0.002, -0.024, 2050, 0.29, ...
+            0.10, 0.006, -0.35, 0.006, 4.2, ...
+            -23, 1.24, 0.12, 0.07, 0.28, ...
             0.54, 2.8);
 
     case 'female_gentle_sweet'
@@ -366,13 +391,13 @@ switch canonicalStyle(style)
             0.40, 3.4);
 
     case 'child_bright_soft'
-        p = makePrior([260 420], 1.5, 9.5, ...
-            1.110, 0.040, 1.08, 1.20, ...
-            0.32, 0.45, 3.4, 0.10, ...
-            -0.040, 0.055, 2850, 0.16, ...
-            0.00, 0.020, 0.85, 0.001, 5.2, ...
-            -25, 1.14, 0.04, 0.05, 0.20, ...
-            0.36, 3.0);
+        p = makePrior([260 420], 1.5, 8.2, ...
+            1.090, 0.025, 1.05, 1.15, ...
+            0.24, 0.34, 2.4, 0.10, ...
+            -0.030, 0.030, 2700, 0.16, ...
+            0.00, 0.010, 0.45, 0.001, 5.2, ...
+            -25, 1.12, 0.02, 0.05, 0.20, ...
+            0.30, 5.2);
 
     case 'elder_warm_steady'
         p = makePrior([100 240], 3.2, 1.8, ...
@@ -500,13 +525,13 @@ function shift = fallbackPitch(style, intensity)
 strength = 0.75 + 0.25*clamp01(intensity);
 switch canonicalStyle(style)
     case 'male_deep_gentle'
-        shift = -3.0*strength;
+        shift = -3.2*strength;
     case 'female_gentle_sweet'
         shift = 2.6*strength;
     case 'child_bright_soft'
-        shift = 4.2*strength;
+        shift = 3.6*strength;
     case 'elder_warm_steady'
-        shift = -1.5*strength;
+        shift = -1.8*strength;
     case 'anonymous'
         shift = -2.5*strength;
     otherwise

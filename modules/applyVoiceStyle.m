@@ -94,7 +94,7 @@ wet = softLimitLocal(wet, 1.05);
 % Speech-aware output gate: keep background noise from being aggressively
 % pitch shifted, but use slow attack/release to avoid chopping word onsets.
 [state, speechGate] = updateSpeechGate(state, dry, fs, effectiveConfig);
-[state, wetRamp] = updateWetRamp(state, numel(dry), fs, voiceType);
+[state, wetRamp] = updateWetRamp(state, numel(dry), fs, voiceType, effectiveConfig);
 
 modeMixScale = styleMixScale(voiceFamily);
 effectiveMix = userMix * modeMixScale .* wetRamp .* speechGate;
@@ -221,7 +221,7 @@ if ~isfield(state.voice, 'wetRampValue'), state.voice.wetRampValue = 0; end
 if ~isfield(state.voice, 'speechGateValue'), state.voice.speechGateValue = 0; end
 if ~isfield(state.voice, 'rmsGain'), state.voice.rmsGain = 1; end
 if ~isfield(state.voice, 'currentPitchSemitones')
-    state.voice.currentPitchSemitones = 0;
+    state.voice.currentPitchSemitones = NaN;
 end
 
 styleChanged = ~isfield(state.voice, 'styleSignature') || ...
@@ -236,7 +236,7 @@ if styleChanged || fsChanged
     state.voice.deEsserGain = 1;
     state.voice.timbrePrev = zeros(3, 1);
     state.voice.bandPrev = zeros(2, 1);
-    state.voice.currentPitchSemitones = 0;
+    state.voice.currentPitchSemitones = NaN;
     state = resetPitchState(state, fs, config);
 
     if fsChanged
@@ -257,8 +257,11 @@ timeConstant = max(0.01, double(getParam(config, ...
     'pitchSmoothingTime', 0.10)));
 alpha = exp(-(frameLength / fs) / timeConstant);
 current = state.voice.currentPitchSemitones;
-if ~isfinite(current), current = 0; end
-semitones = alpha * current + (1 - alpha) * double(target);
+if ~isfinite(current)
+    semitones = double(target);
+else
+    semitones = alpha * current + (1 - alpha) * double(target);
+end
 state.voice.currentPitchSemitones = semitones;
 end
 
@@ -310,6 +313,7 @@ state.voice.pitchWriteIndex = 1;
 state.voice.pitchPhase = 0.25;
 state.voice.pitchMaxDelaySamples = D;
 state.voice.pitchFs = fs;
+state.voice.pitchBufferPrimed = false;
 end
 
 function [y, state] = statefulDualDelayPitchShift(x, fs, semitones, config, state)
@@ -327,6 +331,11 @@ end
 if ~isfield(state.voice, 'pitchBuffer') || ...
         ~isfield(state.voice, 'pitchFs') || state.voice.pitchFs ~= fs
     state = resetPitchState(state, fs, config);
+end
+if ~isfield(state.voice, 'pitchBufferPrimed') || ...
+        ~state.voice.pitchBufferPrimed
+    state.voice.pitchBuffer(:) = x(1);
+    state.voice.pitchBufferPrimed = true;
 end
 
 if abs(semitones) < 0.02
@@ -590,14 +599,19 @@ else
 end
 end
 
-function [state, ramp] = updateWetRamp(state, frameLength, fs, voiceType)
+function [state, ramp] = updateWetRamp(state, frameLength, fs, voiceType, config)
+hasUsablePlan = isfield(state.voice, 'adaptiveConfig') && ...
+    isstruct(state.voice.adaptiveConfig) && ...
+    isfield(state.voice.adaptiveConfig, 'pitchShift') && ...
+    isfinite(double(state.voice.adaptiveConfig.pitchShift));
 ready = strcmpi(styleFamily(voiceType), 'robot_voice') || ...
     startsWith(char(state.voice.calibrationStatus), 'ready') || ...
-    strcmp(state.voice.calibrationStatus, 'disabled');
+    strcmp(state.voice.calibrationStatus, 'disabled') || hasUsablePlan;
 
 target = double(ready);
 startValue = state.voice.wetRampValue;
-step = frameLength / max(0.20 * fs, 1);
+rampTime = clamp(double(getParam(config, 'wetRampTime', 0.06)), 0.015, 0.20);
+step = frameLength / max(rampTime * fs, 1);
 endValue = startValue + clamp(target - startValue, -step, step);
 endValue = clamp01(endValue);
 if frameLength <= 1
