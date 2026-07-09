@@ -1,0 +1,16 @@
+VoiceFX optimized patch v1
+
+Core fixes and upgrades:
+- robust preprocessing and mono downmix
+- speech_clean causal enhancement path
+- richer voice profiling with sub-sample F0 refinement
+- source-aware + optional target-reference-aware adaptive mapping
+- corrected stateful realtime pitch shifter with safe circular indexing
+- silence-first calibration recovery
+- conservative timbre shaping, de-essing, RMS smoothing, soft-knee limiter
+- separate offline HQ full-utterance voice engine with phase locking/formant preservation when shiftPitch is available
+- realtime microphone/device wrappers and processing statistics
+- expanded regression/stress tests
+
+Install by overlaying this patch on the cloned repository root.
+Read docs/OPTIMIZED_RELEASE_GUIDE.md before running.

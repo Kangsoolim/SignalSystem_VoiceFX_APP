@@ -1,111 +1,144 @@
-# VoiceFX App Project Architecture
+# VoiceFX Architecture
 
-## Project Goal
+## 1. 总体目标
 
-This project builds a MATLAB R2024b App Designer system for realtime voice transformation, music/audio effects, AM modulation-demodulation demos, and signal visualization. The current codebase focuses on reusable MATLAB function modules first; App Designer callbacks should later call these modules instead of embedding DSP logic in UI code.
+仓库采用“统一核心处理链 + 两种运行模式”的结构：
 
-## Directory Structure
+- **实时模式**：严格因果、逐帧、状态连续；
+- **离线高质量模式**：允许整句上下文和更高质量 Pitch/Formant 处理。
 
-```text
-VoiceFX_App_Project/
-├─ core/        Shared processing chain, config, state, preprocessing, limiter
-├─ modules/     Independent DSP modules: noise, filter, voice, FX, space, AM, plots
-├─ realtime/    Future realtime device integration notes and wrappers
-├─ app/         Future App Designer entry files and UI notes
-├─ tests/       MATLAB script tests for each implementation stage
-├─ docs/        Architecture and report-supporting documentation
-├─ samples/     Optional small audio samples
-└─ results/     Generated audio and figure outputs
-```
+App Designer 只负责 UI、参数和状态展示，不在回调中重复 DSP 算法。
 
-## Unified Processing Chain
-
-File mode and future realtime mode should share the same frame-level chain:
+## 2. 实时统一处理链
 
 ```text
 preprocessAudio
-→ addNoise
-→ applyDenoiseFilter
-→ applyVoiceStyle
-→ applyVocalFX
-→ applySpaceFX
-→ applyModDemod
-→ safeLimiter
+  -> addNoise
+  -> applyDenoiseFilter
+  -> applyVoiceStyle
+  -> applyVocalFX
+  -> applySpaceFX
+  -> applyModDemod
+  -> safeLimiter
 ```
 
-`processAudioFile` splits a full signal into frames and calls `processAudioFrame`. Future realtime callbacks should also call `processAudioFrame`, so module behavior stays consistent between offline demos and live processing.
-
-## Config Layers
-
-`makeDefaultConfig` returns one top-level struct with these main layers:
-
-- `config.audio`: sample-rate defaults, frame length, mono/double conventions, DC removal, input normalization.
-- `config.noise`: generated noise modes such as white, hum50, and impulse.
-- `config.filter`: traditional filters including highpass, lowpass, bandpass, notch50, and voice_enhance.
-- `config.voice`: lightweight voice style modes including male, female, child, elder, anonymous, and robot_voice.
-- `config.fx`: future vocal/music effects.
-- `config.space`: future delay/reverb and spatial effects.
-- `config.modDemod`: AM modulation and coherent demodulation parameters.
-- `config.output`: limiter behavior and safe output range.
-- `config.display`: spectrum/figure display and save options.
-
-Defaults should keep advanced modules disabled. In particular, `config.modDemod.enabled = false` so the normal audio chain is not changed unless AM mode is explicitly requested.
-
-## State Layers
-
-`initProcessState` creates the shared runtime state. Current and expected layers include:
-
-- `state.filter`: IIR filter memory for frame-continuous denoise filters.
-- `state.modDemod`: carrier sample index and lowpass filter memory for AM demodulation.
-- `state.voice`, `state.fx`, `state.space`: future stateful voice/effect buffers.
-- `state.realtime`: frame counters for shared file/realtime operation.
-- `state.debug`: lightweight diagnostics such as last sample rate and frame length.
-
-State should be passed through every module and returned by `processAudioFrame`.
-
-## File Mode and Realtime Mode
-
-File mode is already implemented through `processAudioFile`: it preprocesses the input, splits by `config.audio.frameLength`, and processes each frame through `processAudioFrame`.
-
-Realtime mode should later use the same contract:
+入口：
 
 ```matlab
 [yFrame, state] = processAudioFrame(xFrame, fs, config, state);
 ```
 
-Realtime-safe modules should default to causal `filter`-based processing. Zero-phase `filtfilt` is only appropriate for file-mode demonstrations when explicitly enabled.
+所有跨帧信息必须放进 `state`，包括：
 
-## Module Composition
+- IIR filter state
+- speech_clean noise/gain state
+- pitch circular buffer / phase
+- calibration buffer / source profile
+- pitch target smoothing
+- speech gate / wet ramp
+- de-esser gain
+- RMS compensation
+- FX and space buffers
 
-Voice style, vocal effects, space effects, and AM demos are not mutually exclusive at the architecture level. They are chained in a fixed order so later combinations can be built by enabling multiple config layers, for example:
+## 3. 离线高质量处理链
 
-- voice style + telephone effect
-- anonymous/interview style + radio or intercom effect
-- child/young style + reverb
-- robot style + bitcrusher
+```text
+full-file preprocessing
+  -> frame-continuous noise/filter
+  -> processVoiceFileHQ (whole utterance)
+  -> frame-continuous FX/space/mod-demod
+  -> safeLimiter
+```
 
-AM modulation-demodulation is mainly for course-report signal analysis and spectrum-shift demonstration. It is available in the shared chain but should normally stay disabled during voice/effect demos.
+入口：
 
-## Completed Modules
+```matlab
+[y, state, diagnostics] = processAudioFileHighQuality(x, fs, config);
+```
 
-- Project scaffold and shared frame chain.
-- `preprocessAudio`: double column vector, mono conversion, NaN/Inf cleanup, DC removal, normalization.
-- `safeLimiter`: hard limiter with configurable range.
-- `addNoise`: none, white, hum50, impulse.
-- `analyzeSpectrum`: single-sided magnitude and dB spectrum data.
-- `applyDenoiseFilter`: none, highpass, lowpass, bandpass, notch50, voice_enhance.
-- `plotSignalInfo`: basic waveform/spectrum report figure support.
-- `applyModDemod`: AM modulation and coherent demodulation.
-- `applyVocalFX`: telephone, walkie_talkie, radio, lofi, bitcrusher, robot.
-- `applySpaceFX`: delay, reverb, bathroom, cave, stage.
-- `applyVoiceStyle`: lightweight traditional voice-style presets: male, female, child, elder, anonymous, robot_voice.
-- `scripts/run_file_demo_pipeline`: offline synthetic demo that exports report-ready audio and figures.
+`processVoiceFileHQ` 优先使用：
 
-## Placeholder Modules
+```text
+Source profile
+  -> adaptive parameter mapping
+  -> phase-locked pitch shift
+  -> formant preservation
+  -> conservative timbre shaping
+  -> de-essing
+  -> limited RMS matching
+  -> soft limiter
+```
 
-- `realtime/`: future microphone and audio device integration.
-- `app/`: future App Designer UI wiring.
+当 `shiftPitch` 不可用时，不采用会产生明显伪影的“短帧循环重采样”伪实现，而是安全地旁路 Pitch 层并保留 timbre 层，同时在 diagnostics 中明确记录 fallback。
 
-## Suggested Next Stage
+## 4. 声线画像与自适应映射
 
-The next high-value stage is App Designer integration for file-mode workflows: load or generate audio, choose module presets, run the shared pipeline, preview waveform/spectrum figures, and export results. Realtime microphone integration should come after the file-mode UI is stable.
+```text
+calibration utterance
+  -> analyzeVoiceProfile
+      - F0 distribution / pitch range
+      - voiced ratio / harmonicity proxy
+      - RMS / dynamic range / crest factor
+      - activity / pause / rhythm proxies
+      - spectral centroid / spread / rolloff / flatness
+      - low-mid-high energy ratios
+      - optional LPC formants
+  -> adaptVoiceStyleConfig
+      - engineering preset OR reusable target reference profile
+      - bounded target F0 region
+      - confidence factor
+      - stability factor
+      - intensity factor
+      - brightness correction
+      - conservative pitch/timbre parameters
+```
+
+这不是把口音、咬字、内容等信息简化成几个 DSP 数值；这些更高层因素需要后续神经内容/发音表征模块处理。
+
+## 5. speech_clean
+
+`applyDenoiseFilter(..., mode='speech_clean')` 的当前实现是低复杂度 DSP 基线：
+
+1. 因果低阶高通抑制 DC/rumble；
+2. 50/100/... Hz 窄陷波抑制工频及谐波；
+3. 4 个宽频带分解；
+4. 时间平滑的噪声功率估计；
+5. Wiener-like band gain；
+6. attack/release 平滑，避免独立帧硬门限导致 musical noise；
+7. 仅有限 ±1.5 dB 的缓慢补偿。
+
+它借鉴“感知分带 + 时间上下文”的工程原则，但不是 DeepFilterNet 的复现，也不应如此表述。
+
+## 6. 实时音频
+
+入口：
+
+```matlab
+stats = runRealtimeVoiceChanger(20, 'female');
+```
+
+建议在第一轮使用 48 kHz / 512 samples，稳定后再尝试 256 samples。减小 frame size 会降低缓冲延迟，但更容易 overrun，因此必须监测：
+
+- meanProcessMs
+- p95ProcessMs
+- meanRealtimeFactor
+- totalOverrunSamples
+- totalUnderrunSamples
+
+## 7. 长期 AI VC 接口
+
+当前 DSP Engine 与未来 AI VC Engine 应并列：
+
+```text
+App / Audio Router
+  -> VoiceEngine interface
+       -> Adaptive DSP Engine
+       -> Neural VC Engine
+            -> causal content/articulatory representation
+            -> source prosody conditioning
+            -> target timbre representation
+            -> streaming conversion model
+            -> DDSP/neural vocoder
+```
+
+这样不需要推翻 App、音频 I/O、Git 协作和测试框架。

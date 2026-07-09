@@ -1,0 +1,28 @@
+V2.5 Final Targeted Tuning Design
+=================================
+
+Core rule:
+Naturalness first + minimum perceptual category separation.
+
+Female direction:
+- Low-pitched source: stronger positive pitch floor.
+- Mid source: moderate lift.
+- High source: no forced upward floor.
+- Formant/envelope reinforcement scales with low-source gap.
+
+Child direction:
+- Every adult source receives a source-dependent minimum positive pitch shift.
+- Low source receives more pitch lift.
+- High source still receives a small positive lift.
+- Child formant/envelope direction stays stronger than female.
+- No fixed output F0 is used.
+
+Unchanged:
+- male planner
+- elder planner
+- noise engine
+- VAD-aware denoiser
+- result preservation
+- batch processing
+- module switches
+- AM path

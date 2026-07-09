@@ -1,0 +1,29 @@
+V2.5 FIRST ROUND VALIDATION REPORT
+
+Scope
+- Four-style voice core
+- VAD-aware denoise
+- Upgraded noise scenarios
+
+Checks completed in build environment
+1. MATLAB grammar static parsing
+   Modified/new MATLAB files checked: 17
+   Syntax-tree errors in modified/new files: 0
+
+2. Focused numerical cross-checks in independent Python translations
+   - VAD-aware denoise equations reduced noise-only RMS in the synthetic test.
+   - Speech-region normalized correlation remained above the test threshold.
+   - Pink-like generator produced a larger low/high spectral energy ratio than white noise.
+
+3. Package-level checks
+   - Relative paths preserved.
+   - No .git content included in patch or clean snapshot packages.
+   - Existing project files are not deleted by the patch.
+   - Human verification columns in the progress CSV were preserved.
+
+Important limitation
+The build environment does not contain MATLAB R2025b. Therefore the report does not claim that the MATLAB runtime suite was executed here. Run:
+
+  run('tests/run_v25_first_round_suite.m');
+
+on the user's MATLAB installation before Git commit.

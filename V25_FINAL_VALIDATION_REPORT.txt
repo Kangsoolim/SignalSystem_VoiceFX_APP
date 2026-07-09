@@ -1,0 +1,67 @@
+V2.5 FINAL ROUND VALIDATION REPORT
+
+Scope
+-----
+Final MATLAB-only DSP refinement based on uploaded real source/output audio and
+additional source examples. The goal is source-adaptive four-style conversion,
+not neural speaker cloning.
+
+Audio-driven diagnosis
+----------------------
+Observed source case:
+  MATLAB project F0 median previously reported: 305.8911 Hz.
+  Independent approximate pitch median on analyzed region: 309.4 Hz.
+  Previous outputs (approximate medians):
+    male   269.4 Hz
+    female 314.9 Hz
+    child  318.5 Hz
+    elder  287.1 Hz
+
+Broad 80-300 Hz energy share:
+    source  about 10.0%
+    male    about 37.1%
+    elder   about 28.8%
+
+The previous male result therefore had excessive low-band weighting without
+stable male pitch placement. Female and child remained too similar in pitch
+and broad spectral distribution. Elder mainly became warmer/lower.
+
+Implemented final changes
+-------------------------
+1. Source-adaptive target-region mapping across low/mid/high/very-high F0.
+2. Robust anti-cancellation-aware downmix in profile and file paths.
+3. Clear octave-error correction and local robust F0 smoothing.
+4. Full-file phase-locked/formant-preserving shiftPitch path when available.
+5. New cepstral full-file spectral-envelope warp with bounded gains.
+6. Much lighter broad low-frequency boost to avoid the previous "fat" male.
+7. Stronger child envelope direction than female.
+8. Elder-specific subtle deterministic tremor and micro-delay age character.
+9. Unique result runs remain preserved; batch processing for Voice_test added.
+10. One unified pipeline with independent course-module switches is preserved.
+
+Static structural checks
+------------------------
+The 20 final modified/new MATLAB files were checked for:
+  - balanced function/if/for/while/switch/try block structure;
+  - balanced (), [], {} delimiters;
+  - expected patch-file presence;
+  - suite references to new final regression tests.
+
+All checked files passed these structural checks.
+
+Regression suite
+----------------
+Run on MATLAB R2025b:
+
+  run('tests/run_v25_final_suite.m');
+
+Expected final line:
+
+  ALL V2.5 FINAL TESTS PASSED.
+
+Important honesty boundary
+--------------------------
+The patch assembly environment does not contain MATLAB R2025b, so actual MATLAB
+execution and local Audio Toolbox compatibility must be accepted on the user's
+machine by the final suite above. No claim is made that static checks replace
+runtime validation.
