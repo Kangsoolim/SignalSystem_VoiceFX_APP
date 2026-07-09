@@ -1,6 +1,6 @@
 # SignalSystem VoiceFX APP
 
-面向《信号与系统》课程项目的 MATLAB 人声处理与实时变声工程。当前仓库已经不是占位框架，而是包含文件处理、声线分析、自适应 DSP 变声、滤波/降噪、音效、空间效果、调制解调、自动测试和实时音频 I/O 的可继续开发版本。
+面向《信号与系统》课程项目的 MATLAB 人声处理与实时变声工程。当前仓库是包含文件处理、声线分析、自适应 DSP 变声、滤波/降噪、音效、空间效果、调制解调、自动测试和实时音频 I/O 的可继续开发版本。
 
 ## 当前核心能力
 
@@ -92,7 +92,7 @@ loaded = load(out.outputPath);
 config.voice.params.targetProfile = loaded.targetProfile;
 ```
 
-这会让同一目标画像面对不同用户时生成不同的 F0/频谱自适应参数。当前仍属于 reference-conditioned DSP adaptation，不是神经 zero-shot speaker cloning。
+这会让同一目标画像面对不同用户时生成不同的 F0/频谱自适应参数。
 
 ## 实时设备
 
