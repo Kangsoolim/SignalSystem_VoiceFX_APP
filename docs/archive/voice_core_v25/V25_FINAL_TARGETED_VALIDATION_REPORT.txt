@@ -1,0 +1,81 @@
+VoiceFX V2.5 Final Targeted Child/Female Tuning - Validation Report
+=====================================================================
+
+Scope
+-----
+Only two user-reported failures are targeted:
+1) child_bright_soft lacked enough child/youthful identity;
+2) low-pitched male source -> female_gentle_sweet under-converted.
+
+Design constraint
+-----------------
+Natural-adaptive baseline is retained. Male and elder planners are not changed.
+The active full-file voice chain remains:
+shiftPitch (phase lock + formant preservation)
+-> light warpSpectralEnvelope
+-> mild timbre shaping
+-> excitation shaping
+-> style dynamics
+-> de-esser
+-> limited RMS match
+-> limiter
+
+No aggressive HQ cepstral warp is called.
+No elder micro-delay/tremor stage is called.
+
+Targeted planner changes
+------------------------
+PASS | female: source-dependent minimum upward shift for low-F0 sources
+PASS | female: bounded formant/envelope reinforcement only for low sources
+PASS | child: source-dependent positive pitch floor across low/high sources
+PASS | child: stronger but bounded formant/envelope direction
+PASS | no fixed output F0 target
+PASS | source pitch range/prosody retention remains active
+PASS | timing and pauses are preserved
+PASS | male and elder category-floor path remains inactive
+
+Independent numeric planner grid
+--------------------------------
+The values below mirror the MATLAB equations for a stable voiced profile.
+They validate parameter planning only; they do not claim MATLAB audio execution.
+
+ sourceF0  female_shift  female_outF0  female_formant  female_env  child_shift  child_outF0  child_formant  child_env
+   90.000         7.761       140.909           1.100       0.280        9.453      155.372          1.170      0.370
+  110.000         7.264       167.343           1.093       0.269        9.154      186.653          1.165      0.364
+  130.000         6.269       186.723           1.083       0.255        8.756      215.576          1.159      0.358
+  150.000         5.174       202.250           1.073       0.240        8.159      240.310          1.154      0.352
+  170.000         4.179       216.414           1.062       0.225        7.496      262.113          1.148      0.347
+  200.000         2.637       232.904           1.050       0.204        6.501      291.145          1.140      0.338
+  230.000         0.796       240.822           1.050       0.200        5.373      313.702          1.132      0.329
+  260.000         0.000       260.000           1.050       0.200        4.245      332.257          1.124      0.320
+  290.000         0.000       290.000           1.050       0.200        3.151      347.890          1.116      0.312
+  305.891        -0.335       300.034           1.051       0.200        2.610      355.669          1.112      0.307
+  330.000        -1.451       303.473           1.054       0.200        1.891      368.078          1.105      0.300
+  392.000        -2.407       341.112           1.061       0.200        1.055      416.624          1.105      0.300
+
+Critical observed cases
+-----------------------
+130 Hz source:
+- female: planned shift ~6.27 st, output F0 ~186.7 Hz,
+          formant scale ~1.083, envelope strength ~0.255
+- child:  planned shift ~8.76 st, output F0 ~215.6 Hz,
+          formant scale ~1.159, envelope strength ~0.358
+
+305.8911 Hz high source:
+- female: planned shift remains near natural source region (slight downward)
+- child: planned shift ~2.61 st, output F0 ~355.7 Hz,
+         formant scale ~1.112, envelope strength ~0.307
+
+Static/project checks
+---------------------
+PASS | final suite references exist
+PASS | active processVoiceFileHQ does not call warpSpectralEnvelopeHQ
+PASS | active processVoiceFileHQ does not call applyElderCharacterHQ
+PASS | updated progress CSV preserves human-validation columns
+PASS | ZIP integrity will be checked after packaging
+
+Important limitation
+--------------------
+No MATLAB R2024b/R2025b runtime is available in this execution environment.
+Actual MATLAB suite execution and listening validation must be performed on
+the user's computer. This report does not claim otherwise.

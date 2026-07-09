@@ -1,13 +1,12 @@
-﻿# VoiceFX 语音处理 App
+# VoiceFX 语音处理 App
 
 VoiceFX App 是基于 MATLAB programmatic UI 的文件模式语音处理工具。App 负责导入音频、整理处理链配置、调用已有 `core/` 和 `modules/` 后端、播放/保存结果，并显示波形、频谱和声谱图。
 
 ## 启动方法
 
-在 MATLAB 中进入项目根目录：
+在 MATLAB 中打开本仓库根目录后运行：
 
 ```matlab
-cd('你的项目根目录')
 addpath(genpath(pwd))
 launchVoiceFXApp
 ```

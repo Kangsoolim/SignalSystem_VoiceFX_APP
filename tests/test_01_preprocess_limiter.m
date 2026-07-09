@@ -7,7 +7,8 @@ addpath(genpath(projectRoot));
 defaultConfig = makeDefaultConfig();
 assert(defaultConfig.audio.removeDC == false, 'Default preprocessing must not force removeDC.');
 assert(defaultConfig.audio.normalizeInput == false, 'Default preprocessing must not normalize per frame/input.');
-assert(strcmp(defaultConfig.output.limiterMode, 'hard'), 'Default limiter mode must remain hard.');
+assert(strcmp(defaultConfig.output.limiterMode, 'soft'), ...
+    'Optimized default limiter mode should be soft.');
 
 config = makeDefaultConfig();
 config.audio.removeDC = true;
@@ -81,7 +82,11 @@ assert(max(abs(yExtreme)) <= 1.000001, 'Final file output peak must not exceed 1
 
 limitConfig = makeDefaultConfig();
 limitConfig.output.limitRange = [-0.5, 0.5];
-xLoud = [-2; -0.25; NaN; Inf; 0.25; 2];
+% Explicitly use a hard limiter as the comparison baseline. The optimized
+% project default is soft limiting, so relying on the default here would
+% compare the soft limiter against itself and make the assertion invalid.
+limitConfig.output.limiterMode = 'hard';
+xLoud = [-2; -0.45; -0.25; NaN; Inf; 0.25; 0.45; 2];
 yLimited = safeLimiter(xLoud, limitConfig);
 assert(isa(yLimited, 'double'), 'Limiter output must be double.');
 assert(iscolumn(yLimited), 'Limiter output must be a column vector.');
@@ -93,7 +98,10 @@ softConfig.output.limiterMode = 'soft';
 ySoft = safeLimiter(xLoud, softConfig);
 assertSignalContract(ySoft, numel(xLoud), 0.5, 'Soft limiter output');
 assert(all(ySoft >= -0.5 & ySoft <= 0.5), 'Soft limiter must respect limitRange.');
-assert(abs(ySoft(2)) < abs(yLimited(2)), 'Soft limiter should bend in-range samples smoothly.');
+assert(abs(ySoft(3) - xLoud(3)) < 1e-12, ...
+    'Soft limiter should preserve samples inside its linear region.');
+assert(abs(ySoft(2)) < abs(yLimited(2)), ...
+    'Soft limiter should compress samples above the soft-knee threshold.');
 
 disp('test_01_preprocess_limiter passed: preprocessing and limiter basics work.');
 

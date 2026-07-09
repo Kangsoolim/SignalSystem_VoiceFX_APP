@@ -1,0 +1,56 @@
+V2.5 NATURAL ADAPTIVE FINAL - DESIGN NOTE
+
+Goal
+----
+Natural-sounding four-class voice transformation with source-dependent planning.
+
+Planner inputs
+--------------
+F0 median
+pitch range in semitones
+F0 coefficient of variation
+voiced ratio
+pitch confidence
+spectral centroid
+low-band energy ratio
+high-band energy ratio
+dynamic range
+energy onset rate proxy
+rhythm interval CV proxy
+
+Planner policy
+--------------
+1. Broad class F0 bands are soft priors, not fixed targets.
+2. Distance to the nearest band edge defines direction.
+3. A tanh budget function limits the global pitch shift smoothly.
+4. Wide expressive pitch contours receive a smaller shift budget.
+5. Timing, pauses, and speaking rate are preserved.
+6. Rhythm proxies only tune compressor release timing.
+7. Low-band support is source-dependent to avoid the previous "fat male" result.
+8. Envelope warping is mild and bounded.
+9. File processing uses full-utterance shiftPitch with phase locking and formant preservation when available.
+10. Aggressive HQ cepstral warping and elder micro-delay processing are not used in the active final chain.
+
+Soft style priors
+-----------------
+male:
+  F0 band 105-195 Hz
+  max downward budget 5.3 st
+  mild downward envelope direction
+
+female:
+  F0 band 170-290 Hz
+  max upward budget 5.0 st
+  mild upward envelope direction
+
+child:
+  F0 band 245-380 Hz
+  max upward budget 6.0 st
+  stronger but still bounded upward envelope direction
+
+elder:
+  F0 band 100-240 Hz
+  moderate pitch movement only
+  mild warm tilt, breathiness, and low-depth continuous roughness
+
+These bands are engineering priors for the course project and are not demographic definitions.
