@@ -16,6 +16,23 @@
 - 人声音效、空间效果、AM 调制解调与信号可视化
 - 麦克风实时链：`realtime/runRealtimeVoiceChanger.m`
 
+
+## Dashboard 控制中心
+
+项目现已提供可审查、可版本管理的 programmatic MATLAB Dashboard：
+
+```matlab
+fig = launchVoiceFXDashboard();
+```
+
+Dashboard 包含三个真实连接现有处理链的工作区：
+
+- **Live Studio**：设备路由、实时声线/音效/空间效果、波形与频谱低频刷新、处理耗时/RTF/xrun 监控；
+- **AM Lab**：DSB-LC 调幅、AWGN 信道、接收端相位偏差/频偏、相干解调、频谱搬移与恢复指标；
+- **File Studio**：导入项目样本或本地文件，在 Realtime-compatible DSP 与 Offline HQ 两套现有引擎之间切换，试听并导出 WAV。
+
+界面层只负责参数、调度和可视化，不在 callback 内复制 DSP 算法。实时 Dashboard 和 CLI 共用 `buildRealtimeConfig` 与 `processAudioFrame`。
+
 ## 两套声线处理引擎
 
 ### 1. Realtime DSP Engine
@@ -80,6 +97,14 @@ run('tests/test_00_framework_smoke.m');
 run('tests/test_01_preprocess_limiter.m');
 run('tests/test_06_voice_style_and_chain.m');
 ```
+
+AM / Dashboard / Realtime 本次升级的聚焦回归入口：
+
+```matlab
+run('tests/run_am_dashboard_upgrade_suite.m');
+```
+
+其中 UI 构造测试只在 MATLAB Desktop 可用时执行；实时声卡 I/O 仍需要在目标机器上人工启动 Live Studio 验证。
 
 
 ## 目标参考声线画像

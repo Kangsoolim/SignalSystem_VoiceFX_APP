@@ -1,13 +1,15 @@
 function [modSig, demodSig, state] = applyModDemod(x, fs, modDemodConfig, state)
-%APPLYMODDEMOD Apply basic AM modulation or coherent demodulation.
-%   The three-output interface is kept for report workflows:
-%       [modSig, demodSig, state] = applyModDemod(...)
-%   For am_modulate, both modSig and demodSig carry the modulated signal so
-%   processAudioFrame can keep using the second output as the primary signal.
-%   M08 is intended for file-mode/report figures that show carrier-sideband
-%   spectrum shifting and lowpass recovery. Keep modDemod.enabled false for
-%   ordinary realtime voice/effect processing unless a dedicated App panel
-%   explicitly opts into this demonstration.
+%APPLYMODDEMOD Stateful AM modulation, coherent demodulation, or round trip.
+%   [MODSIG, DEMODSIG, STATE] = APPLYMODDEMOD(X, FS, CONFIG, STATE)
+%   supports:
+%       none          - pass through
+%       am_modulate   - conventional DSB-LC AM modulation
+%       am_demodulate - coherent product detection + causal lowpass
+%       am_roundtrip  - modulate and demodulate in one stateful call
+%
+%   The module is frame-safe: carrier phase and lowpass filter memory are
+%   carried in STATE. receiverCarrierFreq and receiverPhase can be used to
+%   study coherent receiver mismatch without changing the transmitter.
 
 if nargin < 3 || isempty(modDemodConfig)
     modDemodConfig = struct('enabled', false, 'mode', 'none', 'params', struct());
@@ -21,53 +23,90 @@ if ~isfield(state, 'modDemod') || isempty(state.modDemod)
     state.modDemod = struct();
 end
 
-modSig = double(x);
-modSig = modSig(:);
-modSig(~isfinite(modSig)) = 0;
-demodSig = modSig;
+inputSignal = cleanColumn(x);
+modSig = inputSignal;
+demodSig = inputSignal;
 
 if ~isfield(modDemodConfig, 'enabled') || ~modDemodConfig.enabled
     return;
 end
 
 mode = getModDemodMode(modDemodConfig);
-if strcmpi(mode, 'none') || isempty(modSig)
+if strcmpi(mode, 'none') || isempty(inputSignal)
     return;
 end
 
-if isempty(fs) || ~isfinite(fs) || fs <= 0
-    modSig(~isfinite(modSig)) = 0;
-    demodSig = modSig;
-    return;
+if isempty(fs) || ~isscalar(fs) || ~isfinite(fs) || fs <= 0
+    error('applyModDemod:InvalidSampleRate', ...
+        'Sample rate must be a positive finite scalar.');
 end
 
-carrierFreq = sanitizeCarrier(getFieldOrDefault(modDemodConfig, 'carrierFreq', 4000), fs);
-initialPhase = getFieldOrDefault(modDemodConfig, 'initialPhase', 0);
-signature = sprintf('%s_fs%.9g_fc%.9g_phase%.9g', lower(mode), fs, carrierFreq, double(initialPhase));
-if ~isfield(state.modDemod, 'signature') || ~strcmp(state.modDemod.signature, signature)
+transmitCarrierFreq = sanitizeCarrier(getFieldOrDefault( ...
+    modDemodConfig, 'carrierFreq', 4000), fs);
+transmitPhase = finiteScalar(getFieldOrDefault( ...
+    modDemodConfig, 'initialPhase', 0), 0);
+
+receiverCarrierFreq = getFieldOrDefault(modDemodConfig, ...
+    'receiverCarrierFreq', []);
+if isempty(receiverCarrierFreq)
+    receiverCarrierFreq = transmitCarrierFreq;
+else
+    receiverCarrierFreq = sanitizeCarrier(receiverCarrierFreq, fs);
+end
+receiverPhase = getFieldOrDefault(modDemodConfig, 'receiverPhase', []);
+if isempty(receiverPhase)
+    receiverPhase = transmitPhase;
+else
+    receiverPhase = finiteScalar(receiverPhase, transmitPhase);
+end
+
+signature = sprintf('%s_fs%.9g_tx%.9g_tp%.9g_rx%.9g_rp%.9g', ...
+    lower(mode), fs, transmitCarrierFreq, transmitPhase, ...
+    receiverCarrierFreq, receiverPhase);
+if ~isfield(state.modDemod, 'signature') || ...
+        ~strcmp(state.modDemod.signature, signature)
     state.modDemod.sampleIndex = 0;
     state.modDemod.lowpassZi = [];
     state.modDemod.signature = signature;
 end
+if ~isfield(state.modDemod, 'sampleIndex') || ...
+        ~isscalar(state.modDemod.sampleIndex) || ...
+        ~isfinite(state.modDemod.sampleIndex)
+    state.modDemod.sampleIndex = 0;
+end
 
-carrier = makeCarrier(numel(modSig), fs, carrierFreq, double(initialPhase), state.modDemod.sampleIndex);
+sampleIndex = double(state.modDemod.sampleIndex);
+transmitCarrier = makeCarrier(numel(inputSignal), fs, ...
+    transmitCarrierFreq, transmitPhase, sampleIndex);
+receiverCarrier = makeCarrier(numel(inputSignal), fs, ...
+    receiverCarrierFreq, receiverPhase, sampleIndex);
 
 switch lower(mode)
     case 'am_modulate'
-        modSig = amModulate(modSig, carrier, modDemodConfig);
+        modSig = amModulate(inputSignal, transmitCarrier, modDemodConfig);
         demodSig = modSig;
 
     case 'am_demodulate'
-        [demodSig, state] = amDemodulate(modSig, carrier, fs, modDemodConfig, state);
+        modSig = inputSignal;
+        [demodSig, state] = amDemodulate(inputSignal, receiverCarrier, ...
+            fs, modDemodConfig, state);
+
+    case 'am_roundtrip'
+        modSig = amModulate(inputSignal, transmitCarrier, modDemodConfig);
+        [demodSig, state] = amDemodulate(modSig, receiverCarrier, ...
+            fs, modDemodConfig, state);
 
     otherwise
-        demodSig = modSig;
+        modSig = inputSignal;
+        demodSig = inputSignal;
 end
 
-state.modDemod.sampleIndex = state.modDemod.sampleIndex + numel(modSig);
+state.modDemod.sampleIndex = sampleIndex + numel(inputSignal);
 state.modDemod.lastMode = mode;
 state.modDemod.lastFs = fs;
-state.modDemod.lastCarrierFreq = carrierFreq;
+state.modDemod.lastCarrierFreq = transmitCarrierFreq;
+state.modDemod.lastReceiverCarrierFreq = receiverCarrierFreq;
+state.modDemod.lastReceiverPhase = receiverPhase;
 
 modSig = cleanColumn(modSig);
 demodSig = cleanColumn(demodSig);
@@ -93,12 +132,13 @@ elseif isfield(config, 'mode') && ~isempty(config.mode)
 else
     mode = 'none';
 end
+mode = lower(strtrim(mode));
 end
 
 function carrierFreq = sanitizeCarrier(carrierFreq, fs)
-carrierFreq = abs(double(carrierFreq));
+carrierFreq = abs(finiteScalar(carrierFreq, min(4000, 0.35 * fs)));
 nyquist = fs / 2;
-if isempty(carrierFreq) || ~isfinite(carrierFreq) || carrierFreq <= 0 || carrierFreq >= nyquist
+if carrierFreq <= 0 || carrierFreq >= nyquist
     carrierFreq = min(4000, 0.35 * fs);
 end
 carrierFreq = min(max(carrierFreq, 1), nyquist * 0.95);
@@ -111,10 +151,10 @@ end
 
 function y = amModulate(x, carrier, config)
 mu = getFieldOrDefault(config, 'modulationIndex', 0.7);
-mu = min(max(abs(double(mu)), 0), 1.5);
+mu = min(max(abs(finiteScalar(mu, 0.7)), 0), 1.5);
 
 messageScale = getFieldOrDefault(config, 'messageScale', 0.8);
-messageScale = min(max(abs(double(messageScale)), 0), 1);
+messageScale = min(max(abs(finiteScalar(messageScale, 0.8)), 0), 1);
 
 m = cleanColumn(x);
 peak = max(abs(m));
@@ -132,20 +172,23 @@ end
 
 function [y, state] = amDemodulate(x, carrier, fs, config, state)
 raw = 2 * cleanColumn(x) .* carrier;
-[b, a, signature] = designLowpass(fs, config);
+[b, a, filterSignature] = designLowpass(fs, config);
 useZeroPhase = isTruthy(getFieldOrDefault(config, 'useZeroPhase', false));
 minFiltFiltLength = 3 * max(numel(a), numel(b));
 
-if useZeroPhase && exist('filtfilt', 'file') == 2 && numel(raw) > minFiltFiltLength
+if useZeroPhase && exist('filtfilt', 'file') == 2 && ...
+        numel(raw) > minFiltFiltLength
     y = filtfilt(b, a, raw);
 else
     ziLength = max(numel(a), numel(b)) - 1;
     if ziLength > 0
-        if ~isfield(state.modDemod, 'lowpassSignature') || ~strcmp(state.modDemod.lowpassSignature, signature) || ...
-                ~isfield(state.modDemod, 'lowpassZi') || numel(state.modDemod.lowpassZi) ~= ziLength
+        if ~isfield(state.modDemod, 'lowpassSignature') || ...
+                ~strcmp(state.modDemod.lowpassSignature, filterSignature) || ...
+                ~isfield(state.modDemod, 'lowpassZi') || ...
+                numel(state.modDemod.lowpassZi) ~= ziLength
             zi = zeros(ziLength, 1);
         else
-            zi = state.modDemod.lowpassZi;
+            zi = state.modDemod.lowpassZi(:);
         end
         [y, zi] = filter(b, a, raw, zi);
         state.modDemod.lowpassZi = zi;
@@ -154,38 +197,41 @@ else
     end
 end
 
+% Conventional AM contains a DC term after coherent product detection.
+% Full-file/report mode removes the block mean. In frame mode the AM branch
+% remains opt-in and disabled by default, so this behavior does not affect
+% the normal realtime voice chain.
 y = y - mean(y);
+
 % Full-file report exports can normalize recovered AM audio for convenient
-% listening. Avoid this in per-frame realtime paths because each frame would
-% be scaled independently.
+% listening. Avoid this option in per-frame realtime paths.
 if isTruthy(getFieldOrDefault(config, 'normalizeOutput', true))
     peak = max(abs(y));
     if peak > eps
         y = 0.95 * y / peak;
     end
 end
-state.modDemod.lowpassSignature = signature;
+state.modDemod.lowpassSignature = filterSignature;
 end
 
 function [b, a, signature] = designLowpass(fs, config)
 nyquist = fs / 2;
 cutoff = getFieldOrDefault(config, 'lowpassCutoff', 3400);
-cutoff = abs(double(cutoff));
-if isempty(cutoff) || ~isfinite(cutoff) || cutoff <= 0 || cutoff >= nyquist
+cutoff = abs(finiteScalar(cutoff, min(3400, 0.35 * fs)));
+if cutoff <= 0 || cutoff >= nyquist
     cutoff = min(3400, 0.35 * fs);
 end
 cutoff = min(max(cutoff, 1), nyquist * 0.95);
 
 order = getFieldOrDefault(config, 'filterOrder', 4);
-order = round(abs(double(order)));
-if isempty(order) || ~isfinite(order)
-    order = 4;
-end
+order = round(abs(finiteScalar(order, 4)));
 order = max(1, min(order, 8));
 
 if exist('butter', 'file') == 2
     [b, a] = butter(order, cutoff / nyquist, 'low');
 else
+    % First-order fallback keeps the module runnable without Signal
+    % Processing Toolbox while preserving causal state behavior.
     alpha = exp(-2 * pi * cutoff / fs);
     b = 1 - alpha;
     a = [1, -alpha];
@@ -194,7 +240,7 @@ signature = sprintf('lp_fs%.9g_fc%.9g_order%d', fs, cutoff, order);
 end
 
 function value = getFieldOrDefault(s, fieldName, defaultValue)
-if isfield(s, fieldName) && ~isempty(s.(fieldName))
+if isstruct(s) && isfield(s, fieldName) && ~isempty(s.(fieldName))
     value = s.(fieldName);
 else
     value = defaultValue;
@@ -207,10 +253,18 @@ x = x(:);
 x(~isfinite(x)) = 0;
 end
 
+function value = finiteScalar(value, fallback)
+value = double(value);
+if isempty(value) || ~isscalar(value) || ~isfinite(value)
+    value = fallback;
+end
+end
+
 function tf = isTruthy(value)
 if islogical(value) || isnumeric(value)
-    tf = any(value(:) ~= 0);
+    tf = ~isempty(value) && any(value(:) ~= 0);
 else
-    tf = strcmpi(char(value), 'true') || strcmpi(char(value), 'on') || strcmpi(char(value), 'yes');
+    text = lower(strtrim(char(value)));
+    tf = any(strcmp(text, {'true','on','yes','1'}));
 end
 end

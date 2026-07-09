@@ -1,0 +1,41 @@
+VoiceFX AM + Dashboard + Realtime Upgrade Manifest
+Date: 2026-07-09
+
+NEW
+- launchVoiceFXDashboard.m
+- app/VoiceFXDashboard.m
+- core/buildRealtimeConfig.m
+- modules/runAMExperiment.m
+- docs/AM_DASHBOARD_REALTIME_RESEARCH_MAP.md
+- tests/test_30_am_lab_core.m
+- tests/test_31_dashboard_config_core.m
+- tests/test_32_dashboard_ui_construction.m
+- tests/run_am_dashboard_upgrade_suite.m
+
+UPDATED
+- README.md
+- app/README_app.md
+- core/makeDefaultConfig.m
+- modules/applyModDemod.m
+- realtime/README_realtime.md
+- realtime/listAudioDevices.m
+- realtime/runRealtimeVoiceChanger.m
+- project progress tracking CSV
+
+MATLAB START
+1. Open MATLAB R2025b.
+2. Set Current Folder to the project root.
+3. Run:
+       fig = launchVoiceFXDashboard();
+
+FOCUSED REGRESSION SUITE
+       addpath(genpath(pwd));
+       run('tests/run_am_dashboard_upgrade_suite.m');
+
+VALIDATION PERFORMED IN DELIVERY ENVIRONMENT
+- Tree-sitter MATLAB AST parse: all new/modified MATLAB source files passed.
+- Whole-repository parser flags were compared with the uploaded original ZIP;
+  the same eight pre-existing parser flags existed before this upgrade.
+- MATLAB runtime and Audio Toolbox hardware were not available in the delivery
+  container, so runtime/device claims are intentionally left for MATLAB R2025b
+  execution and real audio-device validation.

@@ -177,20 +177,24 @@ config.space.presets = makeSpacePresetDefaults();
 config.modDemod = struct();
 % M08 AM modulation-demodulation is retained as a Signals and Systems
 % course-report demo for spectrum shifting and coherent recovery. It should
-% be enabled explicitly in file/export scripts, not in the normal realtime
-% voice/effect chain or first App version.
+% be enabled explicitly in file/export scripts or the AM Lab, not in the
+% normal realtime voice/effect chain.
 config.modDemod.enabled = false;
 config.modDemod.type = 'none';
 config.modDemod.mode = 'none';
 config.modDemod.processingTarget = 'file_report';
-config.modDemod.showInApp = false;
+config.modDemod.showInApp = true;
 config.modDemod.realtimeDefaultEnabled = false;
 config.modDemod.carrierFreq = 4000;
+config.modDemod.receiverCarrierFreq = [];
+config.modDemod.receiverPhase = [];
 config.modDemod.modulationIndex = 0.7;
 config.modDemod.messageScale = 0.8;
 config.modDemod.initialPhase = 0;
 config.modDemod.lowpassCutoff = 3400;
 config.modDemod.filterOrder = 4;
+config.modDemod.channelSnrDb = Inf;
+config.modDemod.experimentSeed = 7;
 config.modDemod.useZeroPhase = false;
 % normalizeOutput is useful when exporting full-file demodulated audio for
 % reports. It is not recommended for per-frame realtime use because frame

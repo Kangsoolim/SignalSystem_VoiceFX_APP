@@ -1,34 +1,73 @@
 # Realtime Voice Processing
 
-## 查看设备
+## Dashboard launch
 
 ```matlab
-listAudioDevices();
+fig = launchVoiceFXDashboard();
 ```
 
-## 最小运行
+Open **LIVE STUDIO** to select devices, frame size, voice style, speech cleaning,
+device FX and space FX. Voice/FX/space controls remain live-updatable while a session
+runs; sample rate, frame size and device routing are locked until the session stops.
+
+## List devices
+
+```matlab
+devices = listAudioDevices();
+```
+
+The returned struct contains `input`, `output`, and, when available, `duplex` device lists.
+
+## Minimal CLI run
 
 ```matlab
 stats = runRealtimeVoiceChanger(20, 'female');
 ```
 
-## 指定参数
+## Split input/output devices
 
 ```matlab
 options = struct();
 options.sampleRate = 48000;
 options.frameLength = 512;
+options.ioMode = 'split';
 options.intensity = 0.62;
 options.enableSpeechClean = true;
+options.fxMode = 'telephone';
+options.fxMix = 0.7;
 stats = runRealtimeVoiceChanger(30, 'female', options);
 ```
 
-## 调参原则
+## Full-duplex device path
 
-- 先用 512 samples 跑通并确保 overrun/underrun 为 0；
-- 再尝试 256 samples 以降低 buffer latency；
-- 若出现 overrun，提高 frameLength 或关闭较重模块；
-- MATLAB 统计的 `meanProcessMs` 是算法处理耗时，不等于麦克风到耳机的完整 round-trip latency；
-- Windows 追求更低 I/O 延迟时，可进一步评估兼容的 ASIO 全双工设备链。
+```matlab
+options = struct();
+options.sampleRate = 48000;
+options.frameLength = 512;
+options.ioMode = 'duplex';
+stats = runRealtimeVoiceChanger(30, 'anonymous', options);
+```
 
-实时模式必须继续调用 `processAudioFrame`，不要在 App callback 中另写一套变声算法。
+`duplex` mode requires Audio Toolbox `audioPlayerRecorder`. `split` mode keeps the
+original `audioDeviceReader` + `audioDeviceWriter` route and supports different input and
+output device names.
+
+## Interactive integration callbacks
+
+`runRealtimeVoiceChanger` also accepts:
+
+- `monitorFcn` — receives rolling telemetry snapshots.
+- `controlFcn` — returns a full config or option-update struct during the session.
+- `stopFcn` — returns logical true when the session should stop.
+- `processUIEvents` — lets a programmatic MATLAB UI process button callbacks at monitor cadence.
+
+The Dashboard uses these callbacks; CLI users can ignore them.
+
+## Tuning rules
+
+- Start at 512 samples and confirm overrun/underrun remain zero.
+- Try 256 samples only after the system is stable.
+- Increase frame size or reduce the processing chain when xruns occur.
+- `meanProcessMs` and `p95ProcessMs` are algorithm processing times, not physical
+  microphone-to-headphone round-trip latency.
+- Keep realtime audio processing in `processAudioFrame`; do not duplicate DSP in UI callbacks.
