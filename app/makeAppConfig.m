@@ -41,6 +41,15 @@ if strcmp(voiceMode, 'robot_voice')
     config.voice.modFreq = 42;
     config.voice.intensity = 0.70;
 end
+adaptiveVoiceModes = {'male_deep_gentle', 'female_gentle_sweet', ...
+    'child_bright_soft', 'elder_warm_steady', 'anonymous', 'robot_voice'};
+if ismember(voiceMode, adaptiveVoiceModes)
+    config.voice.params.adaptiveEnabled = true;
+    config.voice.params.engine = 'adaptive';
+else
+    config.voice.params.adaptiveEnabled = false;
+    config.voice.params.engine = 'legacy';
+end
 
 fxMode = mapMode(getSelection(selections, {'fx', 'effect', 'fxMode'}, 'none'), 'fx');
 config.fx.enabled = ~strcmp(fxMode, 'none');
@@ -97,10 +106,18 @@ mode = strrep(mode, ' ', '_');
 switch groupName
     case 'voice'
         switch mode
+            case {'male'}
+                mode = 'male_deep_gentle';
+            case {'female'}
+                mode = 'female_gentle_sweet';
+            case {'child'}
+                mode = 'child_bright_soft';
             case {'elderly', 'old', 'elder'}
-                mode = 'elder';
+                mode = 'elder_warm_steady';
+            case {'anonymous_adaptive', 'adaptive_anonymous', 'anonymous_interview', 'anonymous'}
+                mode = 'anonymous';
             case {'robot', 'robotvoice'}
-                mode = 'robot_voice';
+                mode = 'none';
         end
 
     case 'fx'
@@ -140,7 +157,8 @@ switch groupName
     case 'filter'
         allowed = {'none', 'highpass', 'lowpass', 'bandpass', 'notch50', 'voice_enhance'};
     case 'voice'
-        allowed = {'none', 'male', 'female', 'child', 'elder', 'anonymous', 'robot_voice'};
+        allowed = {'none', 'male_deep_gentle', 'female_gentle_sweet', ...
+            'child_bright_soft', 'elder_warm_steady', 'anonymous', 'robot_voice'};
     case 'fx'
         allowed = {'none', 'telephone', 'walkie_talkie', 'radio', 'lofi', 'bitcrusher', 'gramophone', 'robot'};
     case 'space'

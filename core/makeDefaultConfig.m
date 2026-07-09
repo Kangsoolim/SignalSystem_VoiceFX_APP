@@ -101,7 +101,8 @@ config.voice.highGain = 0;
 config.voice.roughness = 0.15;
 config.voice.modFreq = 35;
 config.voice.params = struct();
-config.voice.params.adaptiveEnabled = true;
+config.voice.params.adaptiveEnabled = false;
+config.voice.params.engine = 'legacy';
 config.voice.params.calibrationSeconds = 0.80;
 config.voice.params.adaptationStrength = 0.78;
 % Naturalness-first planner controls. Broad class regions guide the
@@ -397,5 +398,3 @@ for k = 1:numel(names)
     merged.(names{k}) = overrides.(names{k});
 end
 end
-
-

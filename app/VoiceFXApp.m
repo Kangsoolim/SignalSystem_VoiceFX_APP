@@ -1,4 +1,4 @@
-﻿classdef VoiceFXApp < handle
+classdef VoiceFXApp < handle
     %VOICEFXAPP Programmatic UI for the VoiceFX file-mode audio workstation.
 
     properties
@@ -25,6 +25,12 @@
         FxDropDown
         SpaceDropDown
         AmDropDown
+        LiveInputDropDown
+        LiveOutputDropDown
+        LiveVoiceDropDown
+        RefreshLiveDevicesButton
+        StartLiveButton
+        StopLiveButton
         ProcessButton
         PlayOriginalButton
         PlayProcessedButton
@@ -38,6 +44,7 @@
         SpectrogramAxes
         ChainArea
         LiveStatusArea
+        LiveStopRequested logical = false
     end
 
     methods
@@ -50,6 +57,7 @@
             app.CurrentConfig = makeAppConfig();
             app.buildUI();
             app.refreshSampleList();
+            app.refreshLiveDevices(false);
             app.updateButtonState();
             app.appendStatus('App 已启动。请先导入音频或选择 samples 示例。');
         end
@@ -144,10 +152,11 @@
             presetGrid.Padding = [14 10 14 10];
             presetGrid.BackgroundColor = surface;
             app.PresetDropDown = uidropdown(presetGrid, ...
-                'Items', {'手动选择', '原声清理', '男声 + 电话音', '儿童声线 + Reverb', ...
-                '老年声线 + 留声机', '匿名采访 + 对讲机', 'Robot + Bitcrusher', '山洞广播'}, ...
-                'ItemsData', {'manual', 'clean', 'male_phone', 'child_reverb', 'elder_gramophone', ...
-                'anonymous_walkie', 'robot_bitcrusher', 'cave_radio'}, ...
+                'Items', {'手动选择', '原声清理', '深沉男声 + 电话音', '柔和女声 + Lo-fi', ...
+                '明亮童声 + 浴室混响', '稳定老年声 + 留声机', '深沉男声 + 山洞空间', ...
+                'Robot 音效 + Bitcrusher'}, ...
+                'ItemsData', {'manual', 'clean', 'male_phone', 'female_lofi', ...
+                'child_bathroom', 'elder_gramophone', 'male_cave', 'robot_bitcrusher'}, ...
                 'Value', 'manual', 'ValueChangedFcn', @(~, ~) app.onPresetChanged());
             app.PresetDropDown.FontSize = 13;
 
@@ -162,9 +171,13 @@
             chainGrid.BackgroundColor = surface;
             app.NoiseDropDown = app.addDropdownRow(chainGrid, 1, '噪声', {'none', 'white', 'hum50', 'impulse'}, {'none', 'white', 'hum50', 'impulse'});
             app.FilterDropDown = app.addDropdownRow(chainGrid, 2, '滤波', {'none', 'highpass', 'lowpass', 'bandpass', 'notch50', 'voice_enhance'}, {'none', 'highpass', 'lowpass', 'bandpass', 'notch50', 'voice_enhance'});
-            app.VoiceDropDown = app.addDropdownRow(chainGrid, 3, '声线', {'none', 'male', 'female', 'child', 'elderly', 'anonymous', 'robot'}, {'none', 'male', 'female', 'child', 'elderly', 'anonymous', 'robot'});
-            app.FxDropDown = app.addDropdownRow(chainGrid, 4, '音效', {'none', 'telephone', 'walkie', 'radio', 'lofi', 'bitcrusher', 'gramophone', 'robot'}, {'none', 'telephone', 'walkie', 'radio', 'lofi', 'bitcrusher', 'gramophone', 'robot'});
-            app.SpaceDropDown = app.addDropdownRow(chainGrid, 5, '空间', {'none', 'delay', 'bathroom', 'cave', 'stage'}, {'none', 'delay', 'bathroom', 'cave', 'stage'});
+            app.VoiceDropDown = app.addDropdownRow(chainGrid, 3, '声线', ...
+                {'none', 'male_deep_gentle', 'female_gentle_sweet', 'child_bright_soft', ...
+                'elder_warm_steady'}, ...
+                {'none', 'male_deep_gentle', 'female_gentle_sweet', 'child_bright_soft', ...
+                'elder_warm_steady'});
+            app.FxDropDown = app.addDropdownRow(chainGrid, 4, '音效', {'none', 'telephone', 'radio', 'lofi', 'bitcrusher', 'gramophone', 'robot'}, {'none', 'telephone', 'radio', 'lofi', 'bitcrusher', 'gramophone', 'robot'});
+            app.SpaceDropDown = app.addDropdownRow(chainGrid, 5, '空间', {'none', 'delay', 'bathroom', 'cave'}, {'none', 'delay', 'bathroom', 'cave'});
             app.AmDropDown = app.addDropdownRow(chainGrid, 6, 'AM', {'off', 'modulate', 'demodulate'}, {'off', 'modulate', 'demodulate'});
 
             opsPanel = app.makeSection(leftGrid, '播放与导出');
@@ -258,18 +271,74 @@
             app.styleAxes(app.SpectrogramAxes, '处理后声谱图', '时间 (s)', '频率 (Hz)');
 
             chainTab = uitab(tabs, 'Title', '处理链说明');
-            chainGrid2 = uigridlayout(chainTab, [2 1]);
-            chainGrid2.RowHeight = {'1x', 138};
+            chainGrid2 = uigridlayout(chainTab, [1 1]);
+            chainGrid2.RowHeight = {'1x'};
             chainGrid2.Padding = [18 16 18 18];
-            chainGrid2.RowSpacing = 12;
             chainGrid2.BackgroundColor = softSurface;
             app.ChainArea = uitextarea(chainGrid2, 'Editable', 'off', 'FontName', 'Microsoft YaHei UI');
             app.ChainArea.Layout.Row = 1;
             app.ChainArea.FontSize = 14;
-            app.LiveStatusArea = uitextarea(chainGrid2, 'Editable', 'off', 'FontName', 'Microsoft YaHei UI');
-            app.LiveStatusArea.Layout.Row = 2;
+
+            liveTab = uitab(tabs, 'Title', '实时模式 / Live');
+            liveGrid = uigridlayout(liveTab, [7 2]);
+            liveGrid.RowHeight = {36, 36, 36, 38, 38, '1x', 88};
+            liveGrid.ColumnWidth = {130, '1x'};
+            liveGrid.Padding = [18 16 18 18];
+            liveGrid.RowSpacing = 10;
+            liveGrid.ColumnSpacing = 10;
+            liveGrid.BackgroundColor = softSurface;
+
+            inputLabel = uilabel(liveGrid, 'Text', '输入设备', 'FontColor', textMain, 'FontSize', 13);
+            inputLabel.Layout.Row = 1;
+            inputLabel.Layout.Column = 1;
+            app.LiveInputDropDown = uidropdown(liveGrid, 'Items', {'默认设备'}, 'ItemsData', {''});
+            app.LiveInputDropDown.Layout.Row = 1;
+            app.LiveInputDropDown.Layout.Column = 2;
+
+            outputLabel = uilabel(liveGrid, 'Text', '输出设备', 'FontColor', textMain, 'FontSize', 13);
+            outputLabel.Layout.Row = 2;
+            outputLabel.Layout.Column = 1;
+            app.LiveOutputDropDown = uidropdown(liveGrid, 'Items', {'默认设备'}, 'ItemsData', {''});
+            app.LiveOutputDropDown.Layout.Row = 2;
+            app.LiveOutputDropDown.Layout.Column = 2;
+
+            voiceLabel = uilabel(liveGrid, 'Text', '实时声线', 'FontColor', textMain, 'FontSize', 13);
+            voiceLabel.Layout.Row = 3;
+            voiceLabel.Layout.Column = 1;
+            liveVoiceModes = {'none', 'male_deep_gentle', 'female_gentle_sweet', 'child_bright_soft', 'elder_warm_steady'};
+            app.LiveVoiceDropDown = uidropdown(liveGrid, 'Items', liveVoiceModes, 'ItemsData', liveVoiceModes, 'Value', 'none');
+            app.LiveVoiceDropDown.Layout.Row = 3;
+            app.LiveVoiceDropDown.Layout.Column = 2;
+
+            app.RefreshLiveDevicesButton = uibutton(liveGrid, 'push', 'Text', '刷新设备', ...
+                'ButtonPushedFcn', @(~, ~) app.onRefreshLiveDevices());
+            app.RefreshLiveDevicesButton.Layout.Row = 4;
+            app.RefreshLiveDevicesButton.Layout.Column = [1 2];
+
+            app.StartLiveButton = uibutton(liveGrid, 'push', 'Text', '开始实时', ...
+                'ButtonPushedFcn', @(~, ~) app.onStartLive());
+            app.StartLiveButton.Layout.Row = 5;
+            app.StartLiveButton.Layout.Column = 1;
+            app.StartLiveButton.BackgroundColor = accentSoft;
+            app.StartLiveButton.FontColor = [1 1 1];
+            app.StopLiveButton = uibutton(liveGrid, 'push', 'Text', '停止实时', ...
+                'ButtonPushedFcn', @(~, ~) app.onStopLive());
+            app.StopLiveButton.Layout.Row = 5;
+            app.StopLiveButton.Layout.Column = 2;
+
+            instructionArea = uitextarea(liveGrid, 'Editable', 'off', 'FontName', 'Microsoft YaHei UI');
+            instructionArea.Layout.Row = 6;
+            instructionArea.Layout.Column = [1 2];
+            instructionArea.FontSize = 13;
+            instructionArea.Value = {'Live entry: refresh devices and copy the command-line runner command.', ...
+                'The App does not start the realtime loop inside a UI callback, so file mode stays responsive.', ...
+                'Run realtime/runRealtimeVoiceChanger.m in MATLAB Command Window and press Ctrl+C to stop.'};
+
+            app.LiveStatusArea = uitextarea(liveGrid, 'Editable', 'off', 'FontName', 'Microsoft YaHei UI');
+            app.LiveStatusArea.Layout.Row = 7;
+            app.LiveStatusArea.Layout.Column = [1 2];
             app.LiveStatusArea.FontSize = 13;
-            app.LiveStatusArea.Value = {'实时模式 / Live', '当前版本优先支持稳定文件模式。', '实时处理为实验性入口，暂不在 App 第一版中启动实时音频循环。'};
+            app.LiveStatusArea.Value = {'Live status: waiting for device refresh.'};
 
             app.updateChainDescription();
         end
@@ -373,17 +442,17 @@
                 case 'clean'
                     app.setChain('none', 'voice_enhance', 'none', 'none', 'none', 'off');
                 case 'male_phone'
-                    app.setChain('none', 'voice_enhance', 'male', 'telephone', 'none', 'off');
-                case 'child_reverb'
-                    app.setChain('none', 'voice_enhance', 'child', 'none', 'bathroom', 'off');
+                    app.setChain('none', 'voice_enhance', 'male_deep_gentle', 'telephone', 'none', 'off');
+                case 'female_lofi'
+                    app.setChain('none', 'voice_enhance', 'female_gentle_sweet', 'lofi', 'none', 'off');
+                case 'child_bathroom'
+                    app.setChain('none', 'voice_enhance', 'child_bright_soft', 'none', 'bathroom', 'off');
                 case 'elder_gramophone'
-                    app.setChain('none', 'bandpass', 'elderly', 'gramophone', 'none', 'off');
-                case 'anonymous_walkie'
-                    app.setChain('none', 'voice_enhance', 'anonymous', 'walkie', 'none', 'off');
+                    app.setChain('none', 'bandpass', 'elder_warm_steady', 'gramophone', 'none', 'off');
+                case 'male_cave'
+                    app.setChain('none', 'voice_enhance', 'male_deep_gentle', 'none', 'cave', 'off');
                 case 'robot_bitcrusher'
-                    app.setChain('none', 'none', 'robot', 'bitcrusher', 'none', 'off');
-                case 'cave_radio'
-                    app.setChain('none', 'bandpass', 'none', 'radio', 'cave', 'off');
+                    app.setChain('none', 'none', 'none', 'robot', 'none', 'off');
                 otherwise
                     % Manual mode leaves current controls unchanged.
             end
@@ -413,6 +482,69 @@
             selections.fx = app.FxDropDown.Value;
             selections.space = app.SpaceDropDown.Value;
             selections.am = app.AmDropDown.Value;
+        end
+
+        function onRefreshLiveDevices(app)
+            app.refreshLiveDevices(true);
+        end
+
+        function refreshLiveDevices(app, verboseStatus)
+            if nargin < 2
+                verboseStatus = true;
+            end
+            try
+                devices = listAudioDevices(false);
+                inputDevices = [{'默认设备'}, VoiceFXApp.normalizeDeviceItems(devices.input)];
+                outputDevices = [{'默认设备'}, VoiceFXApp.normalizeDeviceItems(devices.output)];
+                app.LiveInputDropDown.Items = inputDevices;
+                app.LiveInputDropDown.ItemsData = [{''}, inputDevices(2:end)];
+                app.LiveInputDropDown.Value = '';
+                app.LiveOutputDropDown.Items = outputDevices;
+                app.LiveOutputDropDown.ItemsData = [{''}, outputDevices(2:end)];
+                app.LiveOutputDropDown.Value = '';
+                if verboseStatus
+                    app.appendLiveStatus(sprintf('Devices refreshed: %d input, %d output.', ...
+                        numel(inputDevices) - 1, numel(outputDevices) - 1));
+                end
+            catch ME
+                app.LiveInputDropDown.Items = {'默认设备'};
+                app.LiveInputDropDown.ItemsData = {''};
+                app.LiveInputDropDown.Value = '';
+                app.LiveOutputDropDown.Items = {'默认设备'};
+                app.LiveOutputDropDown.ItemsData = {''};
+                app.LiveOutputDropDown.Value = '';
+                app.appendLiveStatus(['Device refresh unavailable: ', ME.message]);
+            end
+        end
+
+        function onStartLive(app)
+            app.LiveStopRequested = false;
+            commandText = app.makeRealtimeCommand();
+            app.appendLiveStatus('Realtime loop was not started inside the App callback. Run this in MATLAB Command Window:');
+            app.appendLiveStatus(commandText);
+        end
+
+        function onStopLive(app)
+            app.LiveStopRequested = true;
+            app.appendLiveStatus('Stop request recorded. If the realtime script is running in Command Window, press Ctrl+C.');
+        end
+
+        function commandText = makeRealtimeCommand(app)
+            inputDevice = app.LiveInputDropDown.Value;
+            outputDevice = app.LiveOutputDropDown.Value;
+            voiceMode = app.LiveVoiceDropDown.Value;
+            parts = {'options = struct()'};
+            if ~isempty(inputDevice)
+                parts{end + 1} = ['options.inputDevice = ''', VoiceFXApp.escapeMatlabString(inputDevice), '''']; %#ok<AGROW>
+            end
+            if ~isempty(outputDevice)
+                parts{end + 1} = ['options.outputDevice = ''', VoiceFXApp.escapeMatlabString(outputDevice), '''']; %#ok<AGROW>
+            end
+            parts{end + 1} = 'options.enableSpeechClean = true'; %#ok<AGROW>
+            parts{end + 1} = 'options.fxMode = ''none'''; %#ok<AGROW>
+            parts{end + 1} = 'options.spaceMode = ''none'''; %#ok<AGROW>
+            parts{end + 1} = ['runRealtimeVoiceChanger(Inf, ''', VoiceFXApp.escapeMatlabString(voiceMode), ''', options)']; %#ok<AGROW>
+            commandText = strjoin(parts, '; ');
         end
 
         function onProcessAudio(app)
@@ -642,20 +774,20 @@
                 case 'voice'
                     switch mode
                         case 'none', text = 'none，不改变声线';
-                        case 'elderly', text = 'elderly，映射到后端 elder 风格';
-                        case 'robot', text = 'robot，映射到后端 robot_voice 风格';
+                        case 'male_deep_gentle', text = 'male_deep_gentle，自适应低沉温和男声';
+                        case 'female_gentle_sweet', text = 'female_gentle_sweet，自适应柔和甜美女声';
+                        case 'child_bright_soft', text = 'child_bright_soft，自适应明亮柔和童声';
+                        case 'elder_warm_steady', text = 'elder_warm_steady，自适应温暖稳重老年声';
                         otherwise, text = [mode, ' 声线风格'];
                     end
                 case 'fx'
                     switch mode
                         case 'none', text = 'none，不添加设备/数字音效';
-                        case 'walkie', text = 'walkie，映射到后端 walkie_talkie';
                         otherwise, text = [mode, ' 音效'];
                     end
                 case 'space'
                     switch mode
                         case 'none', text = 'none，不添加空间感';
-                        case 'stage', text = 'stage，兼容映射为 bathroom 空间';
                         otherwise, text = [mode, ' 空间效果'];
                     end
                 otherwise
@@ -692,7 +824,25 @@
             drawnow limitrate;
         end
 
+        function appendLiveStatus(app, message)
+            if isempty(app.LiveStatusArea) || ~isvalid(app.LiveStatusArea)
+                return;
+            end
+            stamp = datestr(now, 'HH:MM:SS');
+            old = app.LiveStatusArea.Value;
+            if ischar(old)
+                old = {old};
+            end
+            nextValue = [{[stamp, '  ', char(message)]}; old(:)];
+            if numel(nextValue) > 40
+                nextValue = nextValue(1:40);
+            end
+            app.LiveStatusArea.Value = nextValue;
+            drawnow limitrate;
+        end
+
         function onClose(app)
+            app.LiveStopRequested = true;
             app.stopPlayback();
             delete(app.UIFigure);
         end
@@ -780,6 +930,24 @@
                 pathOut = char(pathIn);
             end
         end
+
+        function items = normalizeDeviceItems(values)
+            if isempty(values)
+                items = {};
+            elseif iscell(values)
+                items = cellfun(@char, values(:).', 'UniformOutput', false);
+            elseif isstring(values)
+                items = cellstr(values(:).');
+            elseif ischar(values)
+                items = cellstr(values);
+            else
+                items = cellstr(string(values(:).'));
+            end
+        end
+
+        function text = escapeMatlabString(value)
+            text = strrep(char(value), '''', '''''');
+        end
     end
 end
 
@@ -791,9 +959,3 @@ else
     w = 0.5 - 0.5 * cos(2 * pi * idx / (n - 1));
 end
 end
-
-
-
-
-
-

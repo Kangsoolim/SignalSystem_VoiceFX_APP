@@ -49,10 +49,31 @@ if ~all(isfinite(xProcessedInput))
     error('runFileMode:InvalidPreprocessedAudio', 'Preprocessed audio contains NaN or Inf.');
 end
 
+processingMode = 'frame_pipeline';
+processingDiagnostics = struct();
+useHighQualityVoice = shouldUseHighQualityVoicePath(config);
 try
-    y = processAudioFile(xRaw, fs, config);
+    if useHighQualityVoice
+        [y, ~, processingDiagnostics] = processAudioFileHighQuality(xRaw, fs, config);
+        processingMode = 'high_quality_voice';
+    else
+        y = processAudioFile(xRaw, fs, config);
+    end
 catch ME
-    error('runFileMode:ProcessingFailed', 'Audio processing failed: %s', ME.message);
+    if ~useHighQualityVoice
+        error('runFileMode:ProcessingFailed', 'Audio processing failed: %s', ME.message);
+    end
+
+    try
+        y = processAudioFile(xRaw, fs, config);
+        processingMode = 'frame_pipeline_fallback';
+        processingDiagnostics = struct('status', 'fallback', ...
+            'highQualityError', ME.message);
+    catch fallbackME
+        error('runFileMode:ProcessingFailed', ...
+            'Audio processing failed. HQ voice error: %s; fallback error: %s', ...
+            ME.message, fallbackME.message);
+    end
 end
 
 y = double(y(:));
@@ -82,7 +103,12 @@ result.xProcessedInput = xProcessedInput;
 result.y = y;
 result.duration = numel(xProcessedInput) / fs;
 result.config = config;
+result.processingMode = processingMode;
+result.processingDiagnostics = processingDiagnostics;
 result.message = message;
+if strcmp(processingMode, 'frame_pipeline_fallback')
+    result.message = [result.message, ' HQ 声线处理失败，已回退到兼容链路。'];
+end
 result.outputPath = '';
 
 if ~isempty(opts.OutputPath)
@@ -106,6 +132,57 @@ if ~isempty(opts.OutputPath)
     end
     result.outputPath = outputPath;
     result.message = [result.message, ' 已保存结果。'];
+end
+end
+
+function tf = shouldUseHighQualityVoicePath(config)
+tf = false;
+if ~isstruct(config) || ~isfield(config, 'voice') || isempty(config.voice)
+    return;
+end
+voice = config.voice;
+enabled = true;
+if isfield(voice, 'enabled') && ~isempty(voice.enabled)
+    enabled = logicalScalar(voice.enabled);
+end
+if ~enabled
+    return;
+end
+mode = 'none';
+if isfield(voice, 'type') && ~isempty(voice.type)
+    mode = char(voice.type);
+elseif isfield(voice, 'mode') && ~isempty(voice.mode)
+    mode = char(voice.mode);
+end
+mode = lower(strtrim(mode));
+mode = strrep(mode, '-', '_');
+mode = strrep(mode, ' ', '_');
+switch mode
+    case 'male'
+        mode = 'male_deep_gentle';
+    case 'female'
+        mode = 'female_gentle_sweet';
+    case 'child'
+        mode = 'child_bright_soft';
+    case {'elder', 'elderly'}
+        mode = 'elder_warm_steady';
+end
+deepVoiceModes = {'male_deep_gentle', 'female_gentle_sweet', ...
+    'child_bright_soft', 'elder_warm_steady'};
+tf = any(strcmp(mode, deepVoiceModes)) && ...
+    exist('processAudioFileHighQuality', 'file') == 2;
+end
+
+function tf = logicalScalar(value)
+if islogical(value)
+    tf = any(value(:));
+elseif isnumeric(value)
+    tf = any(value(:) ~= 0);
+elseif ischar(value) || isstring(value)
+    text = lower(strtrim(char(value)));
+    tf = any(strcmp(text, {'true', 'on', 'yes', '1'}));
+else
+    tf = false;
 end
 end
 

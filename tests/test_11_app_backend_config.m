@@ -1,4 +1,4 @@
-﻿%TEST_11_APP_BACKEND_CONFIG Validate App selection-to-backend config mapping.
+%TEST_11_APP_BACKEND_CONFIG Validate App selection-to-backend config mapping.
 
 thisFile = mfilename('fullpath');
 projectRoot = fileparts(fileparts(thisFile));
@@ -11,16 +11,42 @@ assert(~cfg.noise.enabled && strcmp(cfg.noise.type, 'none'), 'Default noise shou
 assert(~cfg.fx.enabled && strcmp(cfg.fx.type, 'none'), 'Default FX should be off.');
 assert(strcmp(cfg.output.limiterMode, 'soft'), 'App config should use soft output safety.');
 
-cfg = makeAppConfig(struct('voice', 'elderly', 'fx', 'walkie', 'space', 'stage', 'am', 'modulate'));
-assert(cfg.voice.enabled && strcmp(cfg.voice.type, 'elder'), 'elderly UI mode should map to backend elder.');
-assert(cfg.fx.enabled && strcmp(cfg.fx.type, 'walkie_talkie'), 'walkie UI mode should map to backend walkie_talkie.');
-assert(cfg.space.enabled && strcmp(cfg.space.type, 'bathroom'), 'stage should map to backend bathroom compatibility mode.');
-assert(cfg.modDemod.enabled && strcmp(cfg.modDemod.type, 'am_modulate'), 'modulate should map to am_modulate.');
+visibleVoiceModes = {'none', 'male_deep_gentle', 'female_gentle_sweet', 'child_bright_soft', 'elder_warm_steady'};
+visibleFxModes = {'none', 'telephone', 'radio', 'lofi', 'bitcrusher', 'gramophone', 'robot'};
+visibleSpaceModes = {'none', 'delay', 'bathroom', 'cave'};
 
-cfg = makeAppConfig('voice', 'robot', 'fx', 'robot', 'space', 'cave', 'noise', 'hum50', 'filter', 'notch50', 'am', 'demodulate');
-assert(strcmp(cfg.voice.type, 'robot_voice'), 'robot voice should map to robot_voice.');
+for k = 1:numel(visibleVoiceModes)
+    cfg = makeAppConfig('voice', visibleVoiceModes{k});
+    assert(strcmp(cfg.voice.type, visibleVoiceModes{k}), 'Visible voice mode should map directly.');
+end
+for k = 1:numel(visibleFxModes)
+    cfg = makeAppConfig('fx', visibleFxModes{k});
+    assert(strcmp(cfg.fx.type, visibleFxModes{k}), 'Visible FX mode should map directly.');
+end
+for k = 1:numel(visibleSpaceModes)
+    cfg = makeAppConfig('space', visibleSpaceModes{k});
+    assert(strcmp(cfg.space.type, visibleSpaceModes{k}), 'Visible space mode should map directly.');
+end
+
+aliasCases = {
+    'male', 'male_deep_gentle'
+    'female', 'female_gentle_sweet'
+    'child', 'child_bright_soft'
+    'elderly', 'elder_warm_steady'
+    'elder', 'elder_warm_steady'
+    'anonymous', 'anonymous'
+    'robot', 'none'
+};
+for k = 1:size(aliasCases, 1)
+    aliasCfg = makeAppConfig('voice', aliasCases{k, 1});
+    assert(strcmp(aliasCfg.voice.type, aliasCases{k, 2}), 'Voice alias should map to a safe backend mode.');
+end
+
+cfg = makeAppConfig('voice', 'elderly', 'fx', 'robot', 'space', 'cave', 'noise', 'hum50', 'filter', 'notch50', 'am', 'demodulate');
+assert(strcmp(cfg.voice.type, 'elder_warm_steady'), 'elderly compatibility mode should map to elder_warm_steady.');
+assert(cfg.voice.params.adaptiveEnabled && strcmp(cfg.voice.params.engine, 'adaptive'), 'New deep voice modes should use adaptive engine.');
 assert(strcmp(cfg.fx.type, 'robot'), 'robot FX should remain robot.');
-assert(strcmp(cfg.space.type, 'cave'), 'cave should be a supported hidden App choice.');
+assert(strcmp(cfg.space.type, 'cave'), 'cave should be supported.');
 assert(strcmp(cfg.noise.type, 'hum50'), 'hum50 should be supported.');
 assert(strcmp(cfg.filter.type, 'notch50'), 'notch50 should be supported.');
 assert(strcmp(cfg.modDemod.type, 'am_demodulate'), 'demodulate should map to am_demodulate.');
@@ -31,12 +57,13 @@ x = preprocessAudio(xRaw, fs, makeAppConfig());
 x = x(1:min(numel(x), round(2.0 * fs)));
 
 chains = {
-    struct('filter', 'voice_enhance', 'fx', 'telephone')
-    struct('voice', 'child', 'space', 'bathroom')
-    struct('voice', 'elderly', 'fx', 'gramophone')
-    struct('voice', 'anonymous', 'fx', 'walkie')
-    struct('voice', 'robot', 'fx', 'bitcrusher')
-    struct('fx', 'radio', 'space', 'cave')
+    struct('filter', 'voice_enhance', 'voice', 'male_deep_gentle', 'fx', 'telephone')
+    struct('filter', 'voice_enhance', 'voice', 'female_gentle_sweet', 'fx', 'lofi')
+    struct('voice', 'child_bright_soft', 'space', 'bathroom')
+    struct('voice', 'elder_warm_steady', 'fx', 'gramophone')
+    struct('voice', 'male_deep_gentle', 'space', 'cave')
+    struct('voice', 'none', 'fx', 'robot')
+    struct('voice', 'male_deep_gentle', 'fx', 'bitcrusher', 'space', 'delay', 'am', 'modulate')
 };
 
 for k = 1:numel(chains)
