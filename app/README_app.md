@@ -7,7 +7,7 @@ VoiceFX App 是基于 MATLAB programmatic UI 的文件模式语音处理工具�
 在 MATLAB 中进入项目根目录：
 
 ```matlab
-cd('C:\Users\13052\Desktop\信号与系统大作业\VoiceFX_App_Project')
+cd('你的项目根目录')
 addpath(genpath(pwd))
 launchVoiceFXApp
 ```
