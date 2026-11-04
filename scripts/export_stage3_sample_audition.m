@@ -1,5 +1,5 @@
 function exportInfo = export_stage3_sample_audition()
-%EXPORT_STAGE3_SAMPLE_AUDITION Run Stage 3 noise/filter modes on real samples.
+%EXPORT_STAGE3_SAMPLE_AUDITION Run Stage 3 noise/filter modes on public samples.
 %   Creates per-sample wav outputs plus one concatenated audition file under
 %   results/stage3_sample_audition. It does not clear or rebuild other
 %   results folders.

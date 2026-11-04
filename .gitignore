@@ -39,3 +39,23 @@ desktop.ini
 *.doc
 ~$*.docx
 /实验报告写作素材整理.md
+
+# Private input audio: only the reviewed public demos are tracked.
+*.wav
+*.WAV
+*.mp3
+*.MP3
+*.m4a
+*.M4A
+*.flac
+*.FLAC
+*.ogg
+*.aiff
+*.aif
+*.aac
+!/samples/demo_speech.wav
+!/samples/demo_speech_alt.wav
+/private_audio/
+/Voice_test/
+# All generated exports, including future result subdirectories.
+/results/

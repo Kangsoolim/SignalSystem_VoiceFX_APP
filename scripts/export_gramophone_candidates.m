@@ -118,7 +118,7 @@ files = dir(fullfile(samplesDir, '*.wav'));
 if isempty(files)
     error('exportGramophoneCandidates:NoSamples', 'No wav files found under samples/.');
 end
-preferredTokens = {'spoken', 'upbeat', 'ballad', 'rap'};
+preferredTokens = {'demo_speech', 'demo_speech_alt'};
 chosen = false(size(files));
 samplePaths = {};
 for k = 1:numel(preferredTokens)

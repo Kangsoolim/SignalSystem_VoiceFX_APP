@@ -106,10 +106,10 @@ end
 
 function [x, fs, inputName] = loadValidationInput(projectRoot)
 samplesDir = fullfile(projectRoot, 'samples');
-preferred = fullfile(samplesDir, 'spoken_monologue_Oscar Winning Tears.wav');
+preferred = fullfile(samplesDir, 'demo_speech.wav');
 if exist(preferred, 'file') == 2
     [x, fs] = audioread(preferred);
-    inputName = 'spoken_monologue_Oscar Winning Tears.wav';
+    inputName = 'demo_speech.wav';
 else
     files = dir(fullfile(samplesDir, '*.wav'));
     if ~isempty(files)

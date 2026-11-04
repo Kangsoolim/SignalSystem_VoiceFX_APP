@@ -12,7 +12,7 @@ addpath(genpath(projectRoot));
 
 if nargin < 1 || isempty(inputPath)
     inputPath = fullfile(projectRoot, 'samples', ...
-        'spoken_monologue_Oscar Winning Tears.wav');
+        'demo_speech.wav');
 end
 if nargin < 2 || isempty(voiceMode)
     voiceMode = 'female';

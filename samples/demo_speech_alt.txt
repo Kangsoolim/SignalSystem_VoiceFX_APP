@@ -1,0 +1,1 @@
+This is a second synthetic speech sample for the audio laboratory. A low hum, a burst of noise, and an echo can change what we hear. Compare the original sound with the filtered result. Please adjust the volume before listening to each example.

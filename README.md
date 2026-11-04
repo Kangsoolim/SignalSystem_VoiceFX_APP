@@ -16,6 +16,32 @@
 - 人声音效、空间效果、AM 调制解调与信号可视化
 - 麦克风实时链：`realtime/runRealtimeVoiceChanger.m`
 
+## Demonstration / Sample Audio
+
+`samples/demo_speech.wav` 和 `samples/demo_speech_alt.wav` 是非个人的英文 TTS
+演示语音，由 CMU Flite 2.2 的 `slt` / `rms` 声线生成，采用单声道、16 kHz、
+16-bit PCM WAV。来源、开放许可、朗读文本和可复现生成步骤见
+[samples/README.md](samples/README.md)。播放或处理已提交的 WAV 不需要安装 TTS。
+
+在 MATLAB 中将 Current Folder 切到仓库根目录后：
+
+```matlab
+addpath(genpath(pwd));
+info = run_adaptive_voice_audition([], 'female'); % 默认使用 demo_speech.wav
+% 或启动 App，在“示例音频”中选择公开样本：
+launchVoiceFXApp;
+% 批量处理 samples/ 中的 WAV（生成结果写入 results/）：
+run('scripts/run_sample_batch_validation.m');
+```
+
+合成语音可用于处理链、滤波、降噪与音效演示，不能完全替代自然人声、演唱、
+实时设备或人工听感测试。更完整的效果验证可导入自己合法持有的 WAV，例如
+`run_adaptive_voice_audition('D:/audio/my_speech.wav', 'female')`，也可通过 App 选择文件。
+请将私人输入保留在仓库外；`.gitignore` 仅允许两段已审查的公开 WAV，并忽略生成结果。
+新增公开样本前需单独核对再分发许可并更新忽略规则。
+
+本次整理仅移除当前版本中的私人样本，不清理 Git 历史；旧提交仍可能包含原录音。
+
 ## 两套声线处理引擎
 
 ### 1. Realtime DSP Engine

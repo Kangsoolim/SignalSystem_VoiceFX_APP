@@ -1,0 +1,1 @@
+Welcome to the signal and systems demonstration. This synthetic voice is used to test speech processing, pitch changes, and audio effects. Listen to the quiet pauses between these sentences. Clear speech contains vowels, consonants, and changing rhythms.

@@ -1,4 +1,4 @@
-%TEST_08_SAMPLE_BATCH_VALIDATION Validate batch processing of real sample wav files.
+%TEST_08_SAMPLE_BATCH_VALIDATION Validate batch processing of public sample WAV files.
 %   This test does not play audio, open App Designer, use realtime devices,
 %   or require external dependencies.
 
@@ -9,6 +9,18 @@ addpath(genpath(projectRoot));
 samplesDir = fullfile(projectRoot, 'samples');
 sampleFiles = dir(fullfile(samplesDir, '*.wav'));
 assert(~isempty(sampleFiles), 'samples/ must contain at least one .wav file.');
+
+% Public demos must remain portable PCM WAVs, not renamed compressed files.
+publicSamples = {'demo_speech.wav', 'demo_speech_alt.wav'};
+for publicIndex = 1:numel(publicSamples)
+    publicPath = fullfile(samplesDir, publicSamples{publicIndex});
+    assert(exist(publicPath, 'file') == 2, ['Missing public demo: ', publicPath]);
+    publicInfo = audioinfo(publicPath);
+    assert(publicInfo.NumChannels == 1 && publicInfo.SampleRate == 16000, ...
+        'Public demos must be mono 16 kHz audio.');
+    assert(publicInfo.BitsPerSample == 16 && publicInfo.TotalSamples > 0, ...
+        'Public demos must contain 16-bit PCM samples.');
+end
 
 run(fullfile(projectRoot, 'scripts', 'run_sample_batch_validation.m'));
 
@@ -55,7 +67,7 @@ for k = 1:numel(sampleFiles)
     end
 end
 
-disp('test_08_sample_batch_validation passed: real sample batch artifacts were generated.');
+disp('test_08_sample_batch_validation passed: public sample batch artifacts were generated.');
 
 function safeName = makeSafeFolderNameForTest(baseName)
 safeName = regexprep(baseName, '[''`]', '');
