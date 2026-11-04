@@ -10,7 +10,7 @@ addpath(genpath(projectRoot));
 
 if nargin < 1 || isempty(inputArg)
     inputPath = fullfile(projectRoot, 'samples', ...
-        'spoken_monologue_Oscar Winning Tears.wav');
+        'demo_speech.wav');
 else
     inputPath = resolveVoiceTestInput(inputArg, projectRoot);
 end

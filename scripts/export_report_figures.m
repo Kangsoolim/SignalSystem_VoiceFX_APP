@@ -1,4 +1,4 @@
-%EXPORT_REPORT_FIGURES Export report-ready figures and wav files from real samples.
+%EXPORT_REPORT_FIGURES Export report-ready figures and wav files from public synthetic speech samples.
 %   Run from project root:
 %       addpath(genpath(pwd));
 %       run('scripts/export_report_figures.m');
@@ -45,17 +45,10 @@ voiceWavCount = 0;
 
 samplesDir = fullfile(projectRoot, 'samples');
 samplePaths = struct();
-samplePaths.rap = fullfile(samplesDir, 'rap_Alexander Hamilton.wav');
-samplePaths.ballad = fullfile(samplesDir, 'ballad_vocal_exile.wav');
-samplePaths.upbeat = fullfile(samplesDir, 'upbeat_vocal_There’s Your Trouble.wav');
-samplePaths.monologue = fullfile(samplesDir, 'spoken_monologue_Oscar Winning Tears.wav');
+samplePaths.speech = fullfile(samplesDir, 'demo_speech.wav');
+samplePaths.speechAlt = fullfile(samplesDir, 'demo_speech_alt.wav');
 
-requiredSamples = {
-    samplePaths.rap
-    samplePaths.ballad
-    samplePaths.upbeat
-    samplePaths.monologue
-};
+requiredSamples = {samplePaths.speech; samplePaths.speechAlt};
 for k = 1:numel(requiredSamples)
     if exist(requiredSamples{k}, 'file') ~= 2
         msg = ['缺失样本文件: ', requiredSamples{k}];
@@ -69,18 +62,16 @@ end
 fprintf('Report figure export started: %s\n', char(runStarted));
 fprintf('Output root: %s\n', outputRoot);
 
-% 1. Four sample overview.
+% 1. Public synthetic speech overview.
 try
-    fileName = '四类样本音频_rap抒情欢快独白波形概览.png';
+    fileName = '公开合成语音_波形概览.png';
     figPath = fullfile(figureDir, fileName);
     sampleList = {
-        'rap', 'rap_Alexander Hamilton.wav', samplePaths.rap
-        'lyrical / 抒情', 'ballad_vocal_exile.wav', samplePaths.ballad
-        'upbeat / 欢快', 'upbeat_vocal_There’s Your Trouble.wav', samplePaths.upbeat
-        'monologue / 独白', 'spoken_monologue_Oscar Winning Tears.wav', samplePaths.monologue
+        'Synthetic speech', 'demo_speech.wav', samplePaths.speech
+        'Synthetic speech alternate', 'demo_speech_alt.wav', samplePaths.speechAlt
     };
-    fig = figure('Visible', 'off', 'Color', 'w', 'Name', '四类样本音频波形概览');
-    tiledlayout(fig, 4, 1, 'Padding', 'compact', 'TileSpacing', 'compact');
+    fig = figure('Visible', 'off', 'Color', 'w', 'Name', '公开合成语音波形概览');
+    tiledlayout(fig, size(sampleList, 1), 1, 'Padding', 'compact', 'TileSpacing', 'compact');
     for k = 1:size(sampleList, 1)
         [x, fs] = readMonoAudio(sampleList{k, 3}, baseConfig);
         x = limitDuration(x, fs, 10.0);
@@ -96,55 +87,55 @@ try
     end
     saveFigure(fig, figPath);
     pngCount = pngCount + 1;
-    manifestRows = appendManifestRow(manifestRows, fileName, '四类样本音频波形概览', ...
-        '四类真实 samples 音频', 'preprocess', 'overview', '4.1 或 4.2', '', ...
-        'A_必须插入', '四个样本各截取前 10 s 并归一化显示。');
+    manifestRows = appendManifestRow(manifestRows, fileName, '公开合成语音波形概览', ...
+        '公开合成语音 samples 音频', 'preprocess', 'overview', '4.1 或 4.2', '', ...
+        'A_必须插入', '两个合成语音样本各截取前 10 s 并归一化显示。');
 catch err
-    failures{end+1,1} = ['四类样本音频波形概览: ', compactError(err)]; %#ok<SAGROW>
-    manifestRows = appendFailureRow(manifestRows, '四类样本音频_rap抒情欢快独白波形概览.png', ...
-        '四类样本音频波形概览', 'preprocess', 'overview', '4.1 或 4.2', err);
+    failures{end+1,1} = ['公开合成语音波形概览: ', compactError(err)]; %#ok<SAGROW>
+    manifestRows = appendFailureRow(manifestRows, '公开合成语音_波形概览.png', ...
+        '公开合成语音波形概览', 'preprocess', 'overview', '4.1 或 4.2', err);
 end
 
-% Shared monologue source.
+% Shared synthetic speech source.
 try
-    [monoRaw, monoFs] = readMonoAudio(samplePaths.monologue, baseConfig);
+    [monoRaw, monoFs] = readMonoAudio(samplePaths.speech, baseConfig);
     monoRaw = limitDuration(monoRaw, monoFs, 10.0);
     monoPre = preprocessForReport(monoRaw, monoFs, baseConfig);
 catch err
     monoRaw = [];
     monoPre = [];
     monoFs = 44100;
-    failures{end+1,1} = ['独白样本读取/预处理失败: ', compactError(err)]; %#ok<SAGROW>
+    failures{end+1,1} = ['合成语音样本读取/预处理失败: ', compactError(err)]; %#ok<SAGROW>
 end
 
 % 2. Original vs preprocessed.
 try
-    requireSignal(monoRaw, '独白样本');
-    fileName = '独白样本_原始音频与预处理后波形频谱对比.png';
-    wavName = '独白样本_预处理后音频.wav';
+    requireSignal(monoRaw, '合成语音样本');
+    fileName = '合成语音样本_原始音频与预处理后波形频谱对比.png';
+    wavName = '合成语音样本_预处理后音频.wav';
     safeWriteWav(fullfile(wavDir, wavName), monoPre, monoFs, baseConfig);
     wavCount = wavCount + 1;
     fig = plotWaveSpectrumCompare(monoRaw, monoPre, monoFs, ...
-        '原始独白样本', '预处理后独白样本', '原始音频与预处理结果对比');
+        '原始合成语音样本', '预处理后合成语音样本', '原始音频与预处理结果对比');
     saveFigure(fig, fullfile(figureDir, fileName));
     pngCount = pngCount + 1;
     manifestRows = appendManifestRow(manifestRows, fileName, '原始音频与预处理结果对比', ...
-        'spoken_monologue_Oscar Winning Tears.wav', 'preprocess', 'removeDC_normalize_protect', ...
+        'demo_speech.wav', 'preprocess', 'removeDC_normalize_protect', ...
         '4.2', wavName, 'A_必须插入', '预处理包含单声道化、去直流、峰值归一化和安全限幅。');
 catch err
     failures{end+1,1} = ['原始音频与预处理后对比: ', compactError(err)]; %#ok<SAGROW>
-    manifestRows = appendFailureRow(manifestRows, '独白样本_原始音频与预处理后波形频谱对比.png', ...
+    manifestRows = appendFailureRow(manifestRows, '合成语音样本_原始音频与预处理后波形频谱对比.png', ...
         '原始音频与预处理结果对比', 'preprocess', 'removeDC_normalize_protect', '4.2', err);
 end
 
 % 3. Three noise modes.
 noiseModes = {
-    'white', '白噪声', '独白样本_白噪声添加结果.wav'
-    'hum50', '工频噪声', '独白样本_工频噪声添加结果.wav'
-    'impulse', '脉冲噪声', '独白样本_脉冲噪声添加结果.wav'
+    'white', '白噪声', '合成语音样本_白噪声添加结果.wav'
+    'hum50', '工频噪声', '合成语音样本_工频噪声添加结果.wav'
+    'impulse', '脉冲噪声', '合成语音样本_脉冲噪声添加结果.wav'
 };
 try
-    requireSignal(monoPre, '独白样本预处理结果');
+    requireSignal(monoPre, '合成语音样本预处理结果');
     noisySignals = cell(size(noiseModes, 1), 1);
     for k = 1:size(noiseModes, 1)
         y = applyNoiseMode(monoPre, monoFs, noiseModes{k, 1}, baseConfig, k * 101);
@@ -152,44 +143,44 @@ try
         safeWriteWav(fullfile(wavDir, noiseModes{k, 3}), y, monoFs, baseConfig);
         wavCount = wavCount + 1;
     end
-    fileName = '独白样本_白噪声工频噪声脉冲噪声波形频谱对比.png';
+    fileName = '合成语音样本_白噪声工频噪声脉冲噪声波形频谱对比.png';
     fig = plotMultiWaveSpectrum(monoPre, noisySignals, monoFs, ...
         {'原始预处理', noiseModes{1,2}, noiseModes{2,2}, noiseModes{3,2}}, ...
         '三类典型噪声添加结果');
     saveFigure(fig, fullfile(figureDir, fileName));
     pngCount = pngCount + 1;
     manifestRows = appendManifestRow(manifestRows, fileName, '三类典型噪声添加结果', ...
-        'spoken_monologue_Oscar Winning Tears.wav', 'noise', 'white / hum50 / impulse', ...
+        'demo_speech.wav', 'noise', 'white / hum50 / impulse', ...
         '4.3', strjoin(noiseModes(:,3).', ' | '), 'A_必须插入', ...
-        '使用真实独白样本分别添加白噪声、50 Hz 工频噪声和脉冲噪声。');
+        '使用合成语音样本分别添加白噪声、50 Hz 工频噪声和脉冲噪声。');
 catch err
     failures{end+1,1} = ['三类典型噪声添加结果: ', compactError(err)]; %#ok<SAGROW>
-    manifestRows = appendFailureRow(manifestRows, '独白样本_白噪声工频噪声脉冲噪声波形频谱对比.png', ...
+    manifestRows = appendFailureRow(manifestRows, '合成语音样本_白噪声工频噪声脉冲噪声波形频谱对比.png', ...
         '三类典型噪声添加结果', 'noise', 'white / hum50 / impulse', '4.3', err);
 end
 
 % 4. Denoise before/after.
 try
-    requireSignal(monoPre, '独白样本预处理结果');
+    requireSignal(monoPre, '合成语音样本预处理结果');
     noisyForFilter = applyNoiseMode(monoPre, monoFs, 'hum50', baseConfig, 404);
     denoised = applyFilterMode(noisyForFilter, monoFs, 'notch50', baseConfig);
-    wavBefore = '独白样本_加噪待滤波音频.wav';
-    wavAfter = '独白样本_滤波去噪后音频.wav';
+    wavBefore = '合成语音样本_加噪待滤波音频.wav';
+    wavAfter = '合成语音样本_滤波去噪后音频.wav';
     safeWriteWav(fullfile(wavDir, wavBefore), noisyForFilter, monoFs, baseConfig);
     safeWriteWav(fullfile(wavDir, wavAfter), denoised, monoFs, baseConfig);
     wavCount = wavCount + 2;
-    fileName = '独白样本_加噪语音滤波前后波形频谱对比.png';
+    fileName = '合成语音样本_加噪语音滤波前后波形频谱对比.png';
     fig = plotWaveSpectrumCompare(noisyForFilter, denoised, monoFs, ...
         '加 50 Hz 工频噪声后', 'notch50 滤波后', '滤波去噪前后对比');
     saveFigure(fig, fullfile(figureDir, fileName));
     pngCount = pngCount + 1;
     manifestRows = appendManifestRow(manifestRows, fileName, '滤波去噪前后对比', ...
-        'spoken_monologue_Oscar Winning Tears.wav', 'filter', 'hum50 + notch50', ...
+        'demo_speech.wav', 'filter', 'hum50 + notch50', ...
         '4.4', [wavBefore, ' | ', wavAfter], 'A_必须插入', ...
         '优先选择工频噪声与 notch50，频谱中 50 Hz 附近抑制最清楚。');
 catch err
     failures{end+1,1} = ['加噪语音滤波前后对比: ', compactError(err)]; %#ok<SAGROW>
-    manifestRows = appendFailureRow(manifestRows, '独白样本_加噪语音滤波前后波形频谱对比.png', ...
+    manifestRows = appendFailureRow(manifestRows, '合成语音样本_加噪语音滤波前后波形频谱对比.png', ...
         '滤波去噪前后对比', 'filter', 'hum50 + notch50', '4.4', err);
 end
 
@@ -208,12 +199,10 @@ catch err
         '不同滤波器幅频响应对比', 'filter', 'responses', '4.4', err);
 end
 
-% 6-25. Adaptive voice styles: four samples x four voice modes.
+% 6-25. Adaptive voice styles: two synthetic samples x four voice modes.
 voiceSamples = {
-    'rap', samplePaths.rap, 'rap样本', 'rap_Alexander Hamilton.wav', 'Rap sample'
-    'lyrical', samplePaths.ballad, '抒情样本', 'ballad_vocal_exile.wav', 'Lyrical sample'
-    'upbeat', samplePaths.upbeat, '欢快样本', 'upbeat_vocal_There’s Your Trouble.wav', 'Upbeat sample'
-    'monologue', samplePaths.monologue, '独白样本', 'spoken_monologue_Oscar Winning Tears.wav', 'Monologue sample'
+    'speech', samplePaths.speech, '合成语音样本', 'demo_speech.wav', 'Synthetic speech'
+    'speech_alt', samplePaths.speechAlt, '合成语音样本二', 'demo_speech_alt.wav', 'Synthetic speech alternate'
 };
 voiceModes = {
     'male_deep_gentle', '自适应低沉温和男声', 'Male deep gentle', 'A_必须插入'
@@ -261,7 +250,7 @@ for s = 1:size(voiceSamples, 1)
             voiceSinglePngCount = voiceSinglePngCount + 1;
             manifestRows = appendManifestRow(manifestRows, fileName, captionCn, ...
                 voiceSamples{s, 4}, 'voice_style', mode, '4.5', wavName, ...
-                voiceModes{m, 4}, '4x4 voice-style supplementary export; figure text uses English fallback.');
+                voiceModes{m, 4}, '2x4 voice-style supplementary export; figure text uses English fallback.');
         catch err
             failures{end+1,1} = [captionCn, ': ', compactError(err)]; %#ok<SAGROW>
             manifestRows = appendFailureRow(manifestRows, fileName, captionCn, ...
@@ -271,8 +260,8 @@ for s = 1:size(voiceSamples, 1)
 end
 
 for m = 1:size(voiceModes, 1)
-    fileName = [voiceModes{m, 2}, '_四类样本横向比较总览.png'];
-    captionCn = [voiceModes{m, 2}, '四类样本横向比较总览'];
+    fileName = [voiceModes{m, 2}, '_公开合成语音横向比较总览.png'];
+    captionCn = [voiceModes{m, 2}, '公开合成语音横向比较总览'];
     try
         outputsForMode = voiceOutputData(:, m);
         wavListForMode = voiceWavNames(:, m);
@@ -282,9 +271,9 @@ for m = 1:size(voiceModes, 1)
         pngCount = pngCount + 1;
         voiceOverviewPngCount = voiceOverviewPngCount + 1;
         manifestRows = appendManifestRow(manifestRows, fileName, captionCn, ...
-            'rap_Alexander Hamilton.wav | ballad_vocal_exile.wav | upbeat_vocal_There''s Your Trouble.wav | spoken_monologue_Oscar Winning Tears.wav', ...
+            'demo_speech.wav | demo_speech_alt.wav', ...
             'voice_style', voiceModes{m, 1}, '4.5', strjoin(wavListForMode.', ' | '), ...
-            'A_必须插入', 'horizontal comparison overview; 4x4 voice-style supplementary export; figure text uses English fallback.');
+            'A_必须插入', 'horizontal comparison overview; 2x4 voice-style supplementary export; figure text uses English fallback.');
     catch err
         failures{end+1,1} = [captionCn, ': ', compactError(err)]; %#ok<SAGROW>
         manifestRows = appendFailureRow(manifestRows, fileName, captionCn, ...
@@ -292,43 +281,43 @@ for m = 1:size(voiceModes, 1)
     end
 end
 
-% Shared upbeat source for effects.
+% Shared alternate synthetic speech source for effects.
 try
-    [upbeatRaw, upbeatFs] = readMonoAudio(samplePaths.upbeat, baseConfig);
-    upbeatRaw = limitDuration(upbeatRaw, upbeatFs, 10.0);
-    upbeatPre = preprocessForReport(upbeatRaw, upbeatFs, baseConfig);
+    [altRaw, altFs] = readMonoAudio(samplePaths.speechAlt, baseConfig);
+    altRaw = limitDuration(altRaw, altFs, 10.0);
+    altPre = preprocessForReport(altRaw, altFs, baseConfig);
 catch err
-    upbeatRaw = [];
-    upbeatPre = [];
-    upbeatFs = 44100;
-    failures{end+1,1} = ['欢快样本读取/预处理失败: ', compactError(err)]; %#ok<SAGROW>
+    altRaw = [];
+    altPre = [];
+    altFs = 44100;
+    failures{end+1,1} = ['合成语音样本二读取/预处理失败: ', compactError(err)]; %#ok<SAGROW>
 end
 
 % 10-15. Vocal FX.
 fxTasks = {
-    'telephone', '欢快样本_电话音前后波形频谱对比.png', '欢快样本_电话音效果.wav', '电话音音效处理结果', 'A_必须插入'
-    'radio', '欢快样本_广播音前后波形频谱对比.png', '欢快样本_广播音效果.wav', '广播音音效处理结果', 'A_必须插入'
-    'bitcrusher', '欢快样本_Bitcrusher音效前后波形频谱对比.png', '欢快样本_Bitcrusher音效.wav', 'Bitcrusher 音效处理结果', 'B_建议插入'
-    'gramophone', '欢快样本_留声机音效前后波形频谱对比.png', '欢快样本_留声机音效.wav', '留声机音效处理结果', 'A_必须插入'
-    'robot', '欢快样本_机器人音效前后波形频谱对比.png', '欢快样本_机器人音效.wav', '机器人音效处理结果', 'B_建议插入'
-    'lofi', '欢快样本_LoFi音效前后波形频谱对比.png', '欢快样本_LoFi音效.wav', 'Lo-Fi 音效处理结果', 'C_备用'
+    'telephone', '合成语音样本二_电话音前后波形频谱对比.png', '合成语音样本二_电话音效果.wav', '电话音音效处理结果', 'A_必须插入'
+    'radio', '合成语音样本二_广播音前后波形频谱对比.png', '合成语音样本二_广播音效果.wav', '广播音音效处理结果', 'A_必须插入'
+    'bitcrusher', '合成语音样本二_Bitcrusher音效前后波形频谱对比.png', '合成语音样本二_Bitcrusher音效.wav', 'Bitcrusher 音效处理结果', 'B_建议插入'
+    'gramophone', '合成语音样本二_留声机音效前后波形频谱对比.png', '合成语音样本二_留声机音效.wav', '留声机音效处理结果', 'A_必须插入'
+    'robot', '合成语音样本二_机器人音效前后波形频谱对比.png', '合成语音样本二_机器人音效.wav', '机器人音效处理结果', 'B_建议插入'
+    'lofi', '合成语音样本二_LoFi音效前后波形频谱对比.png', '合成语音样本二_LoFi音效.wav', 'Lo-Fi 音效处理结果', 'C_备用'
 };
 for k = 1:size(fxTasks, 1)
     try
-        requireSignal(upbeatPre, '欢快样本预处理结果');
+        requireSignal(altPre, '合成语音样本二预处理结果');
         mode = fxTasks{k, 1};
-        y = processFxMode(upbeatPre, upbeatFs, mode, baseConfig);
-        safeWriteWav(fullfile(wavDir, fxTasks{k, 3}), y, upbeatFs, baseConfig);
+        y = processFxMode(altPre, altFs, mode, baseConfig);
+        safeWriteWav(fullfile(wavDir, fxTasks{k, 3}), y, altFs, baseConfig);
         wavCount = wavCount + 1;
-        fig = plotWaveSpectrumCompare(upbeatPre, y, upbeatFs, '原始欢快样本', ['处理后: ', mode], fxTasks{k, 4});
+        fig = plotWaveSpectrumCompare(altPre, y, altFs, '原始合成语音样本二', ['处理后: ', mode], fxTasks{k, 4});
         saveFigure(fig, fullfile(figureDir, fxTasks{k, 2}));
         pngCount = pngCount + 1;
-        note = '使用 upbeat_vocal_There’s Your Trouble.wav 的真实音频片段。';
+        note = '使用 demo_speech_alt.wav 的合成语音片段。';
         if strcmp(mode, 'lofi')
             note = [note, ' 备用图，可按报告篇幅选择是否插入。'];
         end
         manifestRows = appendManifestRow(manifestRows, fxTasks{k, 2}, fxTasks{k, 4}, ...
-            'upbeat_vocal_There’s Your Trouble.wav', 'fx', mode, '4.6', fxTasks{k, 3}, fxTasks{k, 5}, note);
+            'demo_speech_alt.wav', 'fx', mode, '4.6', fxTasks{k, 3}, fxTasks{k, 5}, note);
     catch err
         failures{end+1,1} = [fxTasks{k, 4}, ': ', compactError(err)]; %#ok<SAGROW>
         manifestRows = appendFailureRow(manifestRows, fxTasks{k, 2}, fxTasks{k, 4}, ...
@@ -338,22 +327,22 @@ end
 
 % 16-18. Space effects.
 spaceTasks = {
-    'delay', '独白样本_delay空间效果波形频谱声谱图对比.png', '独白样本_delay空间效果.wav', 'Delay 空间效果处理结果', 'A_必须插入'
-    'bathroom', '独白样本_bathroom空间效果波形频谱声谱图对比.png', '独白样本_bathroom空间效果.wav', 'Bathroom 空间效果处理结果', 'B_建议插入'
-    'cave', '独白样本_cave空间效果波形频谱声谱图对比.png', '独白样本_cave空间效果.wav', 'Cave 空间效果处理结果', 'B_建议插入'
+    'delay', '合成语音样本_delay空间效果波形频谱声谱图对比.png', '合成语音样本_delay空间效果.wav', 'Delay 空间效果处理结果', 'A_必须插入'
+    'bathroom', '合成语音样本_bathroom空间效果波形频谱声谱图对比.png', '合成语音样本_bathroom空间效果.wav', 'Bathroom 空间效果处理结果', 'B_建议插入'
+    'cave', '合成语音样本_cave空间效果波形频谱声谱图对比.png', '合成语音样本_cave空间效果.wav', 'Cave 空间效果处理结果', 'B_建议插入'
 };
 for k = 1:size(spaceTasks, 1)
     try
-        requireSignal(monoPre, '独白样本预处理结果');
+        requireSignal(monoPre, '合成语音样本预处理结果');
         mode = spaceTasks{k, 1};
         y = processSpaceMode(monoPre, monoFs, mode, baseConfig);
         safeWriteWav(fullfile(wavDir, spaceTasks{k, 3}), y, monoFs, baseConfig);
         wavCount = wavCount + 1;
-        fig = plotWaveSpectrumSpectrogramCompare(monoPre, y, monoFs, '原始独白样本', ['空间效果: ', mode], spaceTasks{k, 4});
+        fig = plotWaveSpectrumSpectrogramCompare(monoPre, y, monoFs, '原始合成语音样本', ['空间效果: ', mode], spaceTasks{k, 4});
         saveFigure(fig, fullfile(figureDir, spaceTasks{k, 2}));
         pngCount = pngCount + 1;
         manifestRows = appendManifestRow(manifestRows, spaceTasks{k, 2}, spaceTasks{k, 4}, ...
-            'spoken_monologue_Oscar Winning Tears.wav', 'space', mode, '4.7', spaceTasks{k, 3}, spaceTasks{k, 5}, ...
+            'demo_speech.wav', 'space', mode, '4.7', spaceTasks{k, 3}, spaceTasks{k, 5}, ...
             '声谱图子图显示处理后拖尾、反射或混响延展。');
     catch err
         failures{end+1,1} = [spaceTasks{k, 4}, ': ', compactError(err)]; %#ok<SAGROW>
@@ -364,7 +353,7 @@ end
 
 % 19-20. AM modulation/demodulation.
 try
-    requireSignal(monoPre, '独白样本预处理结果');
+    requireSignal(monoPre, '合成语音样本预处理结果');
     [amBase, amMod, amDemod, amFs, amNotes, amMetrics] = makeAmDemoSignals(monoPre, monoFs, baseConfig);
     amBaseWav = 'AM实验_基带音频.wav';
     amModWav = 'AM实验_调制信号.wav';
@@ -430,7 +419,7 @@ fprintf('\n=== report figure export complete ===\n');
 fprintf('输出目录完整路径: %s\n', outputRoot);
 fprintf('本次新增导出的 png 数量: %d\n', voiceSinglePngCount + voiceOverviewPngCount);
 fprintf('本次新增导出的 wav 数量: %d\n', voiceWavCount);
-fprintf('16 张声线单图是否全部成功: %s\n', logicalStatus(voiceSinglePngCount == 16));
+fprintf('8 张声线单图是否全部成功: %s\n', logicalStatus(voiceSinglePngCount == 8));
 fprintf('4 张声线横向总览图是否全部成功: %s\n', logicalStatus(voiceOverviewPngCount == 4));
 if REPORT_FIGURE_BOX_GLYPH_DETECTED
     fprintf('是否仍检测到方框乱码问题: Box-glyph issue detected in figure text properties\n');
@@ -691,7 +680,7 @@ end
 function fig = plotVoiceStyleOverview(inputData, outputsForMode, sampleLabels, modeLabel)
 fig = figure('Visible', 'off', 'Color', 'w', 'Name', [modeLabel, ' - Cross-sample comparison'], ...
     'Position', [80 80 1350 1150]);
-tiledlayout(fig, 4, 2, 'Padding', 'compact', 'TileSpacing', 'compact');
+tiledlayout(fig, size(inputData, 1), 2, 'Padding', 'compact', 'TileSpacing', 'compact');
 for s = 1:size(inputData, 1)
     x = inputData{s, 1};
     fs = inputData{s, 2};
@@ -1116,10 +1105,11 @@ if ~ischar(value)
 end
 text = value;
 replacements = {
-    '四类样本音频波形概览', 'Four sample waveform overview'
+    '公开合成语音波形概览', 'Public synthetic speech waveform overview'
     '原始音频与预处理结果对比', 'Original vs preprocessed audio'
-    '原始独白样本', 'Original monologue sample'
-    '预处理后独白样本', 'Preprocessed monologue sample'
+    '原始合成语音样本二', 'Original synthetic speech alternate'
+    '原始合成语音样本', 'Original synthetic speech sample'
+    '预处理后合成语音样本', 'Preprocessed synthetic speech sample'
     '原始预处理', 'Preprocessed original'
     '三类典型噪声添加结果', 'Three typical noise examples'
     '白噪声', 'White noise'
@@ -1136,7 +1126,6 @@ replacements = {
     '留声机音效处理结果', 'Gramophone effect result'
     '机器人音效处理结果', 'Robot effect result'
     'Lo-Fi 音效处理结果', 'Lo-Fi effect result'
-    '原始欢快样本', 'Original upbeat sample'
     '处理后', 'Processed'
     'Delay 空间效果处理结果', 'Delay space effect result'
     'Bathroom 空间效果处理结果', 'Bathroom space effect result'
@@ -1268,9 +1257,9 @@ fprintf(fid, '输出目录: %s\n', outputRoot);
 fprintf(fid, '成功导出 PNG 总数: %d\n', pngCount);
 fprintf(fid, '成功导出 WAV 总数: %d\n\n', wavCount);
 fprintf(fid, '本次是在旧报告导图基础上的补充修正。\n');
-fprintf(fid, '新增了 4 个样本 x 4 个自适应声线模式的 16 张单图。实际成功: %d/16。\n', voiceSinglePngCount);
-fprintf(fid, '新增了 4 张同一声线模式跨 4 个样本横向比较总览图。实际成功: %d/4。\n', voiceOverviewPngCount);
-fprintf(fid, '新增处理后 WAV: %d/16。\n', voiceWavCount);
+fprintf(fid, '新增了 2 个合成语音样本 x 4 个自适应声线模式的 8 张单图。实际成功: %d/8。\n', voiceSinglePngCount);
+fprintf(fid, '新增了 4 张同一声线模式跨 2 个合成语音样本横向比较总览图。实际成功: %d/4。\n', voiceOverviewPngCount);
+fprintf(fid, '新增处理后 WAV: %d/8。\n', voiceWavCount);
 fprintf(fid, '已尝试修复 MATLAB 图中文字方框问题，优先字体: %s。\n', fontName);
 fprintf(fid, '最终图内文字采用: %s。文件名和 figure_manifest.csv 的中文图注保留中文。\n', figureTextMode);
 if boxGlyphDetected
